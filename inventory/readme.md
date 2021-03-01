@@ -26,7 +26,7 @@ collect 素材整理格式: `collect/<itemId>/*.png`
 
  `train_torch_from_collect.py` , 使用 collect 中的素材 (基础材料的素材会在启动时从 icon 复制) 进行训练, collect/other 中的素材运行 `prepare_train_resource()` 收集.
 
->  `prepare_train_resource()` 进行从 adb 截图中进行收集, 需要手工根据控制台中的输出与展示的图像进行判断
+>  `prepare_train_resource()` 从 adb 截图中进行收集, 需要手工根据控制台中的输出与展示的图像进行判断
 >
 > 在 opencv 图像的窗口中按回车键(keycode == 13)会将该素材放入相应 item id 的文件夹;
 >

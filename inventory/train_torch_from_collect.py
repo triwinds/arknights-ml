@@ -6,12 +6,11 @@ import cv2
 import os
 import subprocess
 from PIL import Image
-from shutil import copyfile
 
 import inventory
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from dl_data import download_icons
 
 import json
 
@@ -19,17 +18,9 @@ import json
 collect_path = 'images/collect/'
 
 
-def copy_standard_icons_to_collect():
-    icon_files = list(filter(lambda x: x.split('.')[0].isdigit(), os.listdir('images/icon/')))
-    for file in icon_files:
-        item_id = file.split('.')[0]
-        if not os.path.exists(f'{collect_path}{item_id}/'):
-            os.mkdir(f'{collect_path}{item_id}/')
-        if not os.path.exists(f'{collect_path}{item_id}/{file}'):
-            copyfile(f'images/icon/{file}', f'{collect_path}{item_id}/{file}')
-
-
-copy_standard_icons_to_collect()
+# 更新素材
+print('更新素材')
+download_icons()
 
 
 def dump_index_itemid_relation():
@@ -50,20 +41,28 @@ def dump_index_itemid_relation():
 
 def load_images():
     img_map = {}
+    gray_img_map = {}
     img_files = []
     for (dirpath, dirnames, filenames) in os.walk('images/collect'):
         if filenames:
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
-                image = cv2.imread(filepath, cv2.IMREAD_COLOR)
-                # image = cv2.resize(image, (128, 128))
-                img_map[filepath] = image
-                img_files.append(filepath)
-    return img_map, img_files
+                with open(filepath, 'rb') as f:
+                    nparr = np.frombuffer(f.read(), np.uint8)
+                    # convert to image array
+                    image = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+                    image = cv2.resize(image, (128, 128))
+                    if image.shape[-1] == 4:
+                        image = image[..., :-1]
+                    gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                    img_map[filepath] = image
+                    gray_img_map[filepath] = gray_img
+                    img_files.append(filepath)
+    return img_map, gray_img_map, img_files
 
 
 idx2id, id2idx = dump_index_itemid_relation()
-img_map, img_files = load_images()
+img_map, gray_img_map, img_files = load_images()
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -92,27 +91,27 @@ def get_data():
         image = img_map[filepath]
         # print(filepath)
         # inventory.show_img(image)
-        item_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
+        item_gray = gray_img_map[filepath]
         circles = inventory.get_circles(item_gray, 50, 100)
         c = circles[0]
-        ox = c[0] + np.random.randint(-2, 2)
-        oy = c[1] + np.random.randint(-2, 2)
-        img = crop_item_middle_img(image, ox, oy, c[2])
-        # inventory.show_img(img)
+        t = 10 if item_id.isdigit() else 1
+        for _ in range(t):
+            ox = c[0] + np.random.randint(-3, 3)
+            oy = c[1] + np.random.randint(-3, 3)
+            img = crop_item_middle_img(image, ox, oy, c[2])
 
-        image_aug = img
+            image_aug = img
 
-        # inventory.show_img(image_aug)
-
-        # image_aug = image_aug[..., :-1]
-        # print(image_aug.shape)
-
-
-        images.append(image_aug)
-        labels.append(id2idx[item_id])
+            images.append(image_aug)
+            labels.append(id2idx[item_id])
     images_np = np.transpose(np.stack(images, 0), [0, 3, 1, 2])
     labels_np = np.array(labels)
+
+    rand = np.random.RandomState(321)
+    shuffle = rand.permutation(len(images_np))
+    images_np = images_np[shuffle]
+    labels_np = labels_np[shuffle]
+
     # print(images_np.shape)
     return images_np, labels_np
 
@@ -149,13 +148,15 @@ def compute_loss(x, label):
 
 
 def train():
-    model = Cnn().cuda()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print('train on:', device)
+    model = Cnn().to(device)
     optim = torch.optim.Adam(model.parameters(), lr=1e-3)
     model.train()
-    for step in range(200):
+    for step in range(300):
         images_aug_np, label_np = get_data()
-        images_aug = torch.from_numpy(images_aug_np).float().cuda()
-        label = torch.from_numpy(label_np).long().cuda()
+        images_aug = torch.from_numpy(images_aug_np).float().to(device)
+        label = torch.from_numpy(label_np).long().to(device)
         optim.zero_grad()
         score = model(images_aug)
         loss, prec = compute_loss(score, label)
@@ -163,13 +164,14 @@ def train():
         optim.step()
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec.item())
-    torch.save(model.state_dict(), './model3.bin')
+    torch.save(model.state_dict(), './model.bin')
+    torch.onnx.export(model, images_aug, 'ark_material.onnx')
 
 
 def load_model():
     model = Cnn()
     device = torch.device('cpu')
-    model.load_state_dict(torch.load('./model3.bin', map_location=device))
+    model.load_state_dict(torch.load('./model.bin', map_location=device))
     model.eval()
     return model
 
@@ -192,8 +194,8 @@ def predict(model, roi_list):
 
 def test():
     model = load_model()
-    # screen = Image.open('images/screen.png')
-    screen = screenshot()
+    screen = Image.open('images/screen.png')
+    # screen = screenshot()
     items = inventory.get_all_item_img_in_screen(screen)
     roi_list = []
     for x in items:
@@ -208,11 +210,7 @@ def test():
             print(res[1][i], 'other')
         else:
             print(res[1][i], inventory.item_map[item_id])
-        inventory.show_img(items[i]['num_img'])
-    roi_np = np.stack(roi_list, 0)
-    roi_t = torch.from_numpy(roi_np).float()
-
-    torch.onnx.export(model, roi_t, 'ark_material.onnx')
+        inventory.show_img(items[i]['rectangle'])
 
 
 def screenshot():
@@ -258,8 +256,8 @@ def prepare_train_resource():
 
 def test_cv_onnx():
     net = cv2.dnn.readNetFromONNX('ark_material.onnx')
-    # screen = Image.open('images/screen.png')
-    screen = screenshot()
+    screen = Image.open('images/screen.png')
+    # screen = screenshot()
     items = inventory.get_all_item_img_in_screen(screen)
     roi_list = []
     for x in items:
@@ -295,8 +293,8 @@ def export_onnx():
 
 
 if __name__ == '__main__':
-    # train()
-    test()
+    train()
+    # test()
     # prepare_train_resource()
     # export_onnx()
     # test_cv_onnx()

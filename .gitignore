@@ -139,6 +139,6 @@ cython_debug/
 
 .idea/
 stage/images
-inventory/images/collect
+#inventory/images/collect
 inventory/images/tmp
 inventory/images/screen*

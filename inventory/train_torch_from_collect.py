@@ -42,27 +42,31 @@ def dump_index_itemid_relation():
 def load_images():
     img_map = {}
     gray_img_map = {}
+    item_id_map = {}
     img_files = []
-    for (dirpath, dirnames, filenames) in os.walk('images/collect'):
-        if filenames:
-            for filename in filenames:
-                filepath = os.path.join(dirpath, filename)
-                with open(filepath, 'rb') as f:
-                    nparr = np.frombuffer(f.read(), np.uint8)
-                    # convert to image array
-                    image = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
-                    image = cv2.resize(image, (128, 128))
-                    if image.shape[-1] == 4:
-                        image = image[..., :-1]
-                    gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                    img_map[filepath] = image
-                    gray_img_map[filepath] = gray_img
-                    img_files.append(filepath)
-    return img_map, gray_img_map, img_files
+    collect_list = os.listdir('images/collect')
+    collect_list.sort()
+    for cdir in collect_list:
+        dirpath = 'images/collect/' + cdir
+        for filename in os.listdir(dirpath):
+            filepath = os.path.join(dirpath, filename)
+            with open(filepath, 'rb') as f:
+                nparr = np.frombuffer(f.read(), np.uint8)
+                # convert to image array
+                image = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+                image = cv2.resize(image, (128, 128))
+                if image.shape[-1] == 4:
+                    image = image[..., :-1]
+                gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                img_map[filepath] = image
+                gray_img_map[filepath] = gray_img
+                img_files.append(filepath)
+                item_id_map[filepath] = cdir
+    return img_map, gray_img_map, img_files, item_id_map
 
 
 idx2id, id2idx = dump_index_itemid_relation()
-img_map, gray_img_map, img_files = load_images()
+img_map, gray_img_map, img_files, item_id_map = load_images()
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -86,7 +90,7 @@ def get_data():
     images = []
     labels = []
     for filepath in img_files:
-        item_id = filepath.split('\\')[-2]
+        item_id = item_id_map[filepath]
 
         image = img_map[filepath]
         # print(filepath)

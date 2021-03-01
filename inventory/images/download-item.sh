@@ -1,0 +1,1 @@
+curl https://github.com/arkntools/arknights-toolbox/raw/master/src/assets/pkg/item.zip --output ./item.zip

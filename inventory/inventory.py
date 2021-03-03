@@ -3,9 +3,6 @@ import cv2
 import json
 
 
-def load_svm(model_file='item_svm.dat'):
-    return cv2.ml.SVM_load(model_file)
-
 
 def load_item_map():
     with open('penguin_cache.json', 'r') as f:
@@ -17,7 +14,6 @@ def load_item_map():
         return item_map
 
 
-svm = load_svm()
 item_map = load_item_map()
 
 

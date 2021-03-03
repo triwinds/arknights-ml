@@ -99,7 +99,6 @@ def get_data():
         image = img_map[filepath]
         # print(filepath)
         # inventory.show_img(image)
-        item_gray = gray_img_map[filepath]
         c = circle_map[filepath]
         t = 10 if item_id.isdigit() else 1
         for _ in range(t):
@@ -124,26 +123,23 @@ def get_data():
 
 
 class Cnn(nn.Module):
-    def __init__(self):  # 1x28x28
+    def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(3, 6, 3, stride=1, padding=1),  # 6 * 64 * 64
+            nn.Conv2d(3, 10, 5, stride=2, padding=2),  # 10 * 32 * 32
             nn.ReLU(True),
-            nn.MaxPool2d(2, 2),  # 6 * 32 * 32
-            nn.Conv2d(6, 16, 5, stride=1, padding=0),  # 16 * 28 *28
-            nn.ReLU(True),
-            nn.MaxPool2d(4, 4))  # # 16 * 7 * 7
+            nn.MaxPool2d(4, 4))  # 10 * 8 * 8
 
         self.fc = nn.Sequential(
-            nn.Linear(784, 400),  # 784 = 16 * 7 * 7
+            nn.Linear(640, 320),
             nn.ReLU(True),
-            nn.Linear(400, 120),
+            nn.Linear(320, 120),
             nn.ReLU(True),
             nn.Linear(120, NUM_CLASS))
 
     def forward(self, x):
         out = self.conv(x)
-        out = out.reshape(-1, 16 * 7 * 7)  # 784 = 16 * 7 * 7
+        out = out.reshape(-1, 640)
         out = self.fc(out)
         return out
 

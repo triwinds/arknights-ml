@@ -43,6 +43,7 @@ def load_images():
     img_map = {}
     gray_img_map = {}
     item_id_map = {}
+    circle_map = {}
     img_files = []
     collect_list = os.listdir('images/collect')
     collect_list.sort()
@@ -62,11 +63,14 @@ def load_images():
                 gray_img_map[filepath] = gray_img
                 img_files.append(filepath)
                 item_id_map[filepath] = cdir
-    return img_map, gray_img_map, img_files, item_id_map
+                circles = inventory.get_circles(gray_img, 50, 100)
+                circle_map[filepath] = circles[0]
+
+    return img_map, gray_img_map, img_files, item_id_map, circle_map
 
 
 idx2id, id2idx = dump_index_itemid_relation()
-img_map, gray_img_map, img_files, item_id_map = load_images()
+img_map, gray_img_map, img_files, item_id_map, circle_map = load_images()
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -96,8 +100,7 @@ def get_data():
         # print(filepath)
         # inventory.show_img(image)
         item_gray = gray_img_map[filepath]
-        circles = inventory.get_circles(item_gray, 50, 100)
-        c = circles[0]
+        c = circle_map[filepath]
         t = 10 if item_id.isdigit() else 1
         for _ in range(t):
             ox = c[0] + np.random.randint(-3, 3)

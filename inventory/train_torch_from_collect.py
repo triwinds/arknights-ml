@@ -170,7 +170,8 @@ def train():
     model.train()
     step = 0
     prec = 0
-    while step < 500 or (prec < 1 or step > 1000):
+    target_step = 300
+    while step < target_step or prec < 1 or step > 2*target_step:
         images_aug_np, label_np = get_data()
         images_aug = torch.from_numpy(images_aug_np).float().to(device)
         label = torch.from_numpy(label_np).long().to(device)

@@ -31,6 +31,8 @@ def download_icons():
         item_id = 'other'
         if item and item['itemType'] in ['MATERIAL', 'ARKPLANNER']:
             item_id = item['itemId']
+            if not item_id.isdigit() or len(item_id) < 5:
+                item_id = 'other'
         save_img(item_id, item_name, data_dev['data-file'])
         c += 1
         # print(f'{c}/{total} {item_name}')

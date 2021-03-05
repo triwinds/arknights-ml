@@ -10,7 +10,7 @@ from PIL import Image
 import inventory
 import torch
 import torch.nn as nn
-from dl_data import download_icons
+
 
 import json
 
@@ -18,9 +18,10 @@ import json
 collect_path = 'images/collect/'
 
 
-# 更新素材
-print('更新素材')
-download_icons()
+def update_resources():
+    from dl_data import download_icons
+    print('更新素材')
+    download_icons()
 
 
 def dump_index_itemid_relation():
@@ -106,7 +107,7 @@ def get_data():
             oy = c[1] + np.random.randint(-3, 3)
             img = crop_item_middle_img(image, ox, oy, c[2])
 
-            image_aug = img
+            image_aug = img / 255
 
             images.append(image_aug)
             labels.append(id2idx[item_id])
@@ -203,6 +204,7 @@ def test():
     roi_list = []
     for x in items:
         roi = x['rectangle2'].copy()
+        roi = roi / 255
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)
     res = predict(model, roi_list)
@@ -239,6 +241,7 @@ def prepare_train_resource():
     roi_list = []
     for x in items:
         roi = x['rectangle2'].copy()
+        roi = roi / 255
         # inventory.show_img(roi)
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)
@@ -296,6 +299,7 @@ def export_onnx():
 
 
 if __name__ == '__main__':
+    update_resources()
     train()
     # test()
     # prepare_train_resource()

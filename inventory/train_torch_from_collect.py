@@ -6,6 +6,7 @@ import cv2
 import os
 import subprocess
 from PIL import Image
+from torch import Tensor
 
 import inventory
 import torch
@@ -13,6 +14,9 @@ import torch.nn as nn
 
 
 import json
+from focal_loss import FocalLoss
+from torch.utils.data import DataLoader, WeightedRandomSampler
+from functools import lru_cache
 
 
 collect_path = 'images/collect/'
@@ -50,7 +54,8 @@ def load_images():
     collect_list.sort()
     for cdir in collect_list:
         dirpath = 'images/collect/' + cdir
-        for filename in os.listdir(dirpath):
+        sub_dir_files = os.listdir(dirpath)
+        for filename in sub_dir_files:
             filepath = os.path.join(dirpath, filename)
             with open(filepath, 'rb') as f:
                 nparr = np.frombuffer(f.read(), np.uint8)
@@ -66,7 +71,6 @@ def load_images():
                 item_id_map[filepath] = cdir
                 circles = inventory.get_circles(gray_img, 50, 100)
                 circle_map[filepath] = circles[0]
-
     return img_map, gray_img_map, img_files, item_id_map, circle_map
 
 
@@ -97,17 +101,20 @@ def get_data():
     for filepath in img_files:
         item_id = item_id_map[filepath]
 
+        if not item_id.isdigit() and np.random.randint(0, 100) >= 30:
+            continue
+
         image = img_map[filepath]
         # print(filepath)
         # inventory.show_img(image)
         c = circle_map[filepath]
-        t = 10 if item_id.isdigit() else 1
+        t = 30 if item_id.isdigit() else 1
         for _ in range(t):
-            ox = c[0] + np.random.randint(-3, 3)
-            oy = c[1] + np.random.randint(-3, 3)
+            ox = c[0] + np.random.randint(-5, 5)
+            oy = c[1] + np.random.randint(-5, 5)
             img = crop_item_middle_img(image, ox, oy, c[2])
 
-            image_aug = img / 255
+            image_aug = img
 
             images.append(image_aug)
             labels.append(id2idx[item_id])
@@ -145,8 +152,12 @@ class Cnn(nn.Module):
         return out
 
 
+focalloss = FocalLoss(NUM_CLASS)
+# BCEWithLogitsLoss = nn.BCEWithLogitsLoss(weights_t)
+
+
 def compute_loss(x, label):
-    loss = nn.CrossEntropyLoss()(x, label)
+    loss = focalloss(x, label)
     prec = (x.argmax(1) == label).float().mean()
     return loss, prec
 
@@ -157,7 +168,9 @@ def train():
     model = Cnn().to(device)
     optim = torch.optim.Adam(model.parameters(), lr=1e-3)
     model.train()
-    for step in range(300):
+    step = 0
+    prec = 0
+    while step < 500 or (prec < 1 or step > 1000):
         images_aug_np, label_np = get_data()
         images_aug = torch.from_numpy(images_aug_np).float().to(device)
         label = torch.from_numpy(label_np).long().to(device)
@@ -168,6 +181,7 @@ def train():
         optim.step()
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec.item())
+        step += 1
     torch.save(model.state_dict(), './model.bin')
     torch.onnx.export(model, images_aug, 'ark_material.onnx')
 
@@ -204,7 +218,7 @@ def test():
     roi_list = []
     for x in items:
         roi = x['rectangle2'].copy()
-        roi = roi / 255
+        # roi = roi / 255
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)
     res = predict(model, roi_list)
@@ -241,7 +255,7 @@ def prepare_train_resource():
     roi_list = []
     for x in items:
         roi = x['rectangle2'].copy()
-        roi = roi / 255
+        # roi = roi / 255
         # inventory.show_img(roi)
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)
@@ -277,11 +291,12 @@ def test_cv_onnx():
 
         # Get a class with a highest score.
         out = out.flatten()
+        print(out)
         classId = np.argmax(out)
         confidence = out[classId]
         item_id = idx2id[classId]
         print(confidence, inventory.item_map[item_id] if item_id.isdigit() else item_id)
-        inventory.show_img(roi)
+        inventory.show_img(x['rectangle'])
 
 
 def export_onnx():
@@ -305,5 +320,6 @@ if __name__ == '__main__':
     # prepare_train_resource()
     # export_onnx()
     # test_cv_onnx()
+    # print(cv2.getBuildInformation())
 
 

@@ -20,6 +20,7 @@ item_map = load_item_map()
 def get_all_item_img_in_screen(pil_screen):
     # 720p
     cv_screen = cv2.cvtColor(np.asarray(pil_screen), cv2.COLOR_BGR2RGB)
+    dbg_screen = cv_screen.copy()
     img_h, img_w = cv_screen.shape[:2]
     ratio = 720 / img_h
     if ratio != 1:
@@ -34,12 +35,13 @@ def get_all_item_img_in_screen(pil_screen):
     for c in circles:
         x, y, box_size = int(c[0] - int(c[2] * 2.4) // 2), int(c[1] - int(c[2] * 2.4) // 2), int(c[2] * 2.4)
         if x > 0 and x + box_size < img_w:
-            # cv2.rectangle(cv_screen, (x, y), (x + box_size, y + box_size), (7, 249, 151), 3)
+            cv2.rectangle(dbg_screen, (x, y), (x + box_size, y + box_size), (7, 249, 151), 3)
             cv_item_img = cv_screen[y:y + box_size, x:x + box_size, :]
             cv_item_img2 = crop_item_middle_img(cv_item_img, c[2])
             num_img = crop_number_img(cv_item_img, c[2])
             # item_img = crop_item_img(cv_screen, gray_screen, c)
             res.append({'rectangle': cv_item_img, 'num_img': num_img, 'rectangle2': cv_item_img2})
+    # show_img(dbg_screen)
     return res
 
 

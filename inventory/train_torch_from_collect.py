@@ -1,23 +1,17 @@
+import json
+import os
+import subprocess
 import time
 from io import BytesIO
 
-import numpy as np
 import cv2
-import os
-import subprocess
-from PIL import Image
-from torch import Tensor
-
-import inventory
+import numpy as np
 import torch
 import torch.nn as nn
+from PIL import Image
 
-
-import json
+import inventory
 from focal_loss import FocalLoss
-from torch.utils.data import DataLoader, WeightedRandomSampler
-from functools import lru_cache
-
 
 collect_path = 'images/collect/'
 
@@ -52,9 +46,11 @@ def load_images():
     img_files = []
     collect_list = os.listdir('images/collect')
     collect_list.sort()
+    weights = []
     for cdir in collect_list:
         dirpath = 'images/collect/' + cdir
         sub_dir_files = os.listdir(dirpath)
+        weights.append(len(sub_dir_files))
         for filename in sub_dir_files:
             filepath = os.path.join(dirpath, filename)
             with open(filepath, 'rb') as f:
@@ -71,11 +67,12 @@ def load_images():
                 item_id_map[filepath] = cdir
                 circles = inventory.get_circles(gray_img, 50, 100)
                 circle_map[filepath] = circles[0]
-    return img_map, gray_img_map, img_files, item_id_map, circle_map
+    weights_t = 1 / torch.as_tensor(weights)
+    return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
 
 
 idx2id, id2idx = dump_index_itemid_relation()
-img_map, gray_img_map, img_files, item_id_map, circle_map = load_images()
+img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t = load_images()
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -101,8 +98,8 @@ def get_data():
     for filepath in img_files:
         item_id = item_id_map[filepath]
 
-        if not item_id.isdigit() and np.random.randint(0, 100) >= 30:
-            continue
+        # if not item_id.isdigit() and np.random.randint(0, 100) >= 30:
+        #     continue
 
         image = img_map[filepath]
         # print(filepath)
@@ -152,7 +149,7 @@ class Cnn(nn.Module):
         return out
 
 
-focalloss = FocalLoss(NUM_CLASS)
+focalloss = FocalLoss(NUM_CLASS, alpha=weights_t)
 # BCEWithLogitsLoss = nn.BCEWithLogitsLoss(weights_t)
 
 

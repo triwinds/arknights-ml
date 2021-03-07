@@ -22,6 +22,9 @@ def update_resources():
     download_icons()
 
 
+update_resources()
+
+
 def dump_index_itemid_relation():
     dump_data = {
         'idx2id': [],

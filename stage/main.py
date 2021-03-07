@@ -27,6 +27,8 @@ def screenshot():
     screenshot_cache = cv2.imdecode(img_array, 0)
     screenshot_rgb_cache = cv2.imdecode(img_array, 1)
     screenshot_time = time.time() - st
+    screenshot_cache = _resize_img(screenshot_cache)
+    screenshot_rgb_cache = _resize_img(screenshot_rgb_cache)
 
 
 def resize_img(img_path):
@@ -38,6 +40,15 @@ def resize_img(img_path):
     ratio = 1080 / img2.shape[0]
     size = (int(width / ratio), int(height / ratio))
     return cv2.resize(img1, size, interpolation=cv2.INTER_AREA)
+
+
+def _resize_img(img):
+    height, width = img.shape[:2]
+    if height == 1080:
+        return img
+    ratio = 1080 / height
+    size = (int(width * ratio), int(height * ratio))
+    return cv2.resize(img, size, interpolation=cv2.INTER_AREA)
 
 
 def image_to_position(image, m=0):
@@ -145,7 +156,7 @@ def prepare_train_resource(image_name, skip_save=False):
             tag = cut_tag(screen, w, pt)
             tag = thresholding(tag)
             remove_holes(tag)
-            # cv2.imwrite('images/tmp/%s.png' % pos_key, tag)
+            cv2.imwrite('images/tmp/%s.png' % pos_key, tag)
             tag_str = cv_svm_ocr.do_ocr(tag)
             print(pos_key, tag_str)
 
@@ -227,8 +238,8 @@ if __name__ == '__main__':
     #     if s == 'n':
     #         break
 
-    screenshot()
-    save_screenshot()
+    # screenshot()
+    # save_screenshot()
 
     # img = cv2.imread('images/battle_start.png', 1)
     # img = resize_cv_img(img, 2/3, cv2.INTER_AREA)
@@ -236,8 +247,8 @@ if __name__ == '__main__':
 
     # save_screenshot()
 
-    # get_train_resource(True)
+    get_train_resource(True)
 
     # move_to_char2()
-    # print(os.listdir('E:\\py\\arknights-stage-ocr\\images\\chars2'))
+    # print(os.listdir('images/chars2'))
 

@@ -68,7 +68,7 @@ def load_train_resource(img_dir):
 def predict(gray_img, model_file='svm_data1.dat'):
     svm = load_svm(model_file)
     res = svm.predict(np.float32([get_img_feature(gray_img)]))
-    return chr(res[1])
+    return chr(int(res[1][0][0]))
 
 
 def get_img_feature(img):

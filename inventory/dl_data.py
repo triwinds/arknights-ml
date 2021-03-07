@@ -45,6 +45,7 @@ def save_img(item_id, item_name, img_url):
     if os.path.exists(filepath):
         return
     print(f'downloading {item_id}/{item_name} ...')
+    print(f'img_url: {img_url}')
     resp = requests.get(img_url)
 
     with open(filepath, 'wb') as f:

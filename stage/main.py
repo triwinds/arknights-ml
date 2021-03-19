@@ -60,7 +60,7 @@ def image_to_position(image, m=0):
 
 
 def thresholding(image):
-    img = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    img = cv2.threshold(image, 180, 255, cv2.THRESH_BINARY)[1]
     if img[0, 0] < 127:
         img = ~img
     return img
@@ -139,26 +139,32 @@ def prepare_train_resource(image_name, skip_save=False):
     screen = screenshot_cache
     template = resize_img(image_path)
     result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
-    threshold = 0.8
+    threshold = 0.7
     loc = np.where(result >= threshold)
     h, w = template.shape[:2]
     img_h, img_w = screen.shape[:2]
     tag_set = set()
+    tag_set2 = set()
     for pt in zip(*loc[::-1]):
-        pos_key = '%d-%d' % (pt[0] / 100, pt[1] / 100)
-        if pos_key in tag_set:
+        pos_key = (pt[0] // 100, pt[1] // 100)
+        pos_key2 = (int(pt[0] / 100 + 0.5), int(pt[1] / 100 + 0.5))
+        if pos_key in tag_set or pos_key2 in tag_set2:
             continue
         tag_set.add(pos_key)
+        tag_set2.add(pos_key2)
         # cv2.rectangle(screen, pt, (pt[0] + w, pt[1] + h), (7, 249, 151), 3)
         tag_w = 130
         # 检查边缘像素是否超出截图的范围
         if pt[0] + w + tag_w < img_w:
             tag = cut_tag(screen, w, pt)
+            if tag is None:
+                continue
             tag = thresholding(tag)
+            cv2.imwrite('images/tmp/t%s.png' % str(pos_key), tag)
             remove_holes(tag)
-            cv2.imwrite('images/tmp/%s.png' % pos_key, tag)
+            cv2.imwrite('images/tmp/%s.png' % str(pos_key), tag)
             tag_str = cv_svm_ocr.do_ocr(tag)
-            print(pos_key, tag_str)
+            print(pt, tag_str)
 
             if not skip_save:
                 char_imgs = cv_svm_ocr.crop_char_img(tag)

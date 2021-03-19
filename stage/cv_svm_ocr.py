@@ -1,5 +1,7 @@
 import os
+import io
 import random
+import zipfile
 from functools import lru_cache
 
 import cv2
@@ -38,6 +40,10 @@ def train(img_dir='images/chars', output_file='svm_data.dat'):
 
     svm.train(samples, cv2.ml.ROW_SAMPLE, labels)
     svm.save(output_file)
+    with open(output_file, 'rb') as f:
+        zf = zipfile.ZipFile('svm_data.zip', 'w', zipfile.ZIP_DEFLATED)
+        zf.writestr('svm_data.dat', f.read())
+    zf.close()
 
 
 def load_train_resource(img_dir):
@@ -78,7 +84,22 @@ def get_img_feature(img):
 
 @lru_cache(2)
 def load_svm(model_file='svm_data1.dat'):
-    return cv2.ml.SVM_load(model_file)
+    if model_file.endswith('.dat'):
+        return cv2.ml.SVM_load(model_file)
+    else:
+        return load_svm_from_zip(model_file)
+
+
+def load_svm_from_zip(model_file='svm_data.zip'):
+    with open(model_file, 'rb') as f:
+        # bio = io.BytesIO(f.read())
+        zf = zipfile.ZipFile(f, 'r')
+        ydoc = zf.read('svm_data.dat').decode('utf-8')
+        fs = cv2.FileStorage(ydoc, cv2.FileStorage_READ | cv2.FileStorage_MEMORY)
+        svm = cv2.ml.SVM_create()
+        svm.read(fs.getFirstTopLevelNode())
+        assert svm.isTrained()
+        return svm
 
 
 def crop_char_img_old(img):
@@ -211,6 +232,6 @@ if __name__ == '__main__':
     # check_KNearest()
 
     train('images/chars2', 'svm_data.dat')
-    check('images/chars2', 'svm_data.dat')
+    check('images/chars2', 'svm_data.zip')
 
     # train_ann()

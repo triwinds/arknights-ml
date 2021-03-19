@@ -7,7 +7,7 @@ collect_path = 'images/collect/'
 
 
 def get_items_name_map():
-    resp = requests.get('https://penguin-stats.io/PenguinStats/api/v2/items')
+    resp = requests.get('https://penguin-stats.cn/PenguinStats/api/v2/items')
     items = resp.json()
     res = {}
     for item in items:

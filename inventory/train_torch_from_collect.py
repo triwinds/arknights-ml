@@ -314,13 +314,29 @@ def export_onnx():
     torch.onnx.export(model, roi_t, 'ark_material.onnx')
 
 
+def test_single_img(img_path=''):
+    model = load_model()
+    image = img_map[img_path]
+    roi_list = []
+    roi = inventory.crop_item_middle_img(image, 60)
+    roi = np.transpose(roi, (2, 0, 1))
+    # inventory.show_img(roi)
+    roi_list.append(roi)
+    res = predict(model, roi_list)
+    item_id = res[0][0]
+    if item_id == 'other':
+        print(res[1][0], 'other')
+    else:
+        print(res[1][0], inventory.item_map[item_id])
+    inventory.show_img(image)
+
+
 if __name__ == '__main__':
-    update_resources()
     train()
     # test()
     # prepare_train_resource()
     # export_onnx()
     # test_cv_onnx()
     # print(cv2.getBuildInformation())
-
+    # test_single_img('images/collect/other\\罗德岛物资配给证书.png')
 

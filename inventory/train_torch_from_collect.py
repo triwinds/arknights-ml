@@ -30,8 +30,10 @@ def dump_index_itemid_relation():
         'idx2id': [],
         'id2idx': {}
     }
+    collect_list = os.listdir('images/collect')
+    collect_list.sort()
     index = 0
-    for dirpath in os.listdir(collect_path):
+    for dirpath in collect_list:
         item_id = dirpath
         dump_data['idx2id'].append(item_id)
         dump_data['id2idx'][item_id] = index
@@ -112,7 +114,9 @@ def get_data():
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
-            img = crop_item_middle_img(image, ox, oy, c[2])
+            ratio = 1 + np.random.uniform(-0.2, 0.2)
+            img = cv2.resize(image, None, fx=ratio, fy=ratio)
+            img = crop_item_middle_img(img, ox, oy, c[2])
 
             image_aug = img
 
@@ -170,7 +174,7 @@ def train():
     model.train()
     step = 0
     prec = 0
-    target_step = 300
+    target_step = 800
     while step < target_step or prec < 1 or step > 2*target_step:
         images_aug_np, label_np = get_data()
         images_aug = torch.from_numpy(images_aug_np).float().to(device)

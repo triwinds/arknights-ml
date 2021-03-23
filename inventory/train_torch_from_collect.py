@@ -22,7 +22,7 @@ def update_resources():
     download_icons()
 
 
-update_resources()
+# update_resources()
 
 
 def dump_index_itemid_relation():
@@ -114,7 +114,7 @@ def get_data():
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
-            ratio = 1 + np.random.uniform(-0.2, 0.2)
+            ratio = 1 + np.random.uniform(-0.1, 0.1)
             img = cv2.resize(image, None, fx=ratio, fy=ratio)
             img = crop_item_middle_img(img, ox, oy, c[2])
 
@@ -140,7 +140,7 @@ class Cnn(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(3, 10, 5, stride=2, padding=2),  # 10 * 32 * 32
             nn.ReLU(True),
-            nn.MaxPool2d(4, 4))  # 10 * 8 * 8
+            nn.AvgPool2d(4, 4))  # 10 * 8 * 8
 
         self.fc = nn.Sequential(
             nn.Linear(640, 320),
@@ -336,11 +336,11 @@ def test_single_img(img_path=''):
 
 
 if __name__ == '__main__':
-    train()
+    # train()
     # test()
     # prepare_train_resource()
     # export_onnx()
-    # test_cv_onnx()
+    test_cv_onnx()
     # print(cv2.getBuildInformation())
     # test_single_img('images/collect/other\\罗德岛物资配给证书.png')
 

@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import time
+from functools import lru_cache
 from io import BytesIO
 
 import cv2
@@ -22,7 +23,7 @@ def update_resources():
     download_icons()
 
 
-# update_resources()
+update_resources()
 
 
 def dump_index_itemid_relation():
@@ -97,25 +98,29 @@ def get_noise_data():
     return images_np, labels_np
 
 
+max_resize_ratio = 100
+
+
+@lru_cache(maxsize=None)
+def get_resized_img(filepath, ratio):
+    img = img_map[filepath]
+    ratio = 1 + 0.2 * (ratio / max_resize_ratio)
+    return cv2.resize(img, None, fx=ratio, fy=ratio)
+
+
 def get_data():
     images = []
     labels = []
     for filepath in img_files:
         item_id = item_id_map[filepath]
 
-        # if not item_id.isdigit() and np.random.randint(0, 100) >= 30:
-        #     continue
-
-        image = img_map[filepath]
-        # print(filepath)
-        # inventory.show_img(image)
         c = circle_map[filepath]
         t = 30 if item_id.isdigit() else 1
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
-            ratio = 1 + np.random.uniform(-0.1, 0.1)
-            img = cv2.resize(image, None, fx=ratio, fy=ratio)
+            ratio = np.random.randint(-max_resize_ratio, max_resize_ratio)
+            img = get_resized_img(filepath, ratio)
             img = crop_item_middle_img(img, ox, oy, c[2])
 
             image_aug = img
@@ -143,11 +148,9 @@ class Cnn(nn.Module):
             nn.AvgPool2d(4, 4))  # 10 * 8 * 8
 
         self.fc = nn.Sequential(
-            nn.Linear(640, 320),
+            nn.Linear(640, 2*NUM_CLASS),
             nn.ReLU(True),
-            nn.Linear(320, 120),
-            nn.ReLU(True),
-            nn.Linear(120, NUM_CLASS))
+            nn.Linear(2*NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
         out = self.conv(x)
@@ -187,14 +190,14 @@ def train():
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec.item())
         step += 1
-    torch.save(model.state_dict(), './model.bin')
+    torch.save(model.state_dict(), './model.pth')
     torch.onnx.export(model, images_aug, 'ark_material.onnx')
 
 
 def load_model():
     model = Cnn()
     device = torch.device('cpu')
-    model.load_state_dict(torch.load('./model.bin', map_location=device))
+    model.load_state_dict(torch.load('./model.pth', map_location=device))
     model.eval()
     return model
 
@@ -234,7 +237,7 @@ def test():
             print(res[1][i], 'other')
         else:
             print(res[1][i], inventory.item_map[item_id])
-        inventory.show_img(items[i]['rectangle'])
+        # inventory.show_img(items[i]['rectangle'])
 
 
 def screenshot():
@@ -279,29 +282,34 @@ def prepare_train_resource():
         save_collect_img(item_id, items[i]['rectangle'])
 
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0)
+
+
 def test_cv_onnx():
     net = cv2.dnn.readNetFromONNX('ark_material.onnx')
     screen = Image.open('images/screen.png')
     # screen = screenshot()
     items = inventory.get_all_item_img_in_screen(screen)
-    roi_list = []
     for x in items:
-        roi = x['rectangle2'].copy()
+        roi = x['rectangle2']
         # inventory.show_img(roi)
-
-        roi_list.append(roi)
         blob = cv2.dnn.blobFromImage(roi)
         net.setInput(blob)
         out = net.forward()
 
         # Get a class with a highest score.
         out = out.flatten()
-        print(out)
+        out = softmax(out)
+        # print(out)
         classId = np.argmax(out)
+        # confidence = out[classId]
         confidence = out[classId]
         item_id = idx2id[classId]
         print(confidence, inventory.item_map[item_id] if item_id.isdigit() else item_id)
-        inventory.show_img(x['rectangle'])
+        # inventory.show_img(x['rectangle'])
 
 
 def export_onnx():
@@ -336,11 +344,11 @@ def test_single_img(img_path=''):
 
 
 if __name__ == '__main__':
-    # train()
+    train()
     # test()
     # prepare_train_resource()
     # export_onnx()
-    test_cv_onnx()
+    # test_cv_onnx()
     # print(cv2.getBuildInformation())
     # test_single_img('images/collect/other\\罗德岛物资配给证书.png')
 

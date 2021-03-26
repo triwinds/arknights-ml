@@ -25,6 +25,7 @@ def download_icons():
     # print(data_devs[0])
     total = len(data_devs)
     c = 0
+    update_flag = False
     for data_dev in data_devs:
         item_name = data_dev['data-name']
         item = items_name_map.get(item_name)
@@ -33,9 +34,12 @@ def download_icons():
             item_id = item['itemId']
             if not item_id.isdigit() or len(item_id) < 5:
                 item_id = 'other'
-        save_img(item_id, item_name, data_dev['data-file'])
+        flag = save_img(item_id, item_name, data_dev['data-file'])
+        if flag:
+            update_flag = True
         c += 1
         # print(f'{c}/{total} {item_name}')
+    return update_flag
 
 
 def save_img(item_id, item_name, img_url):
@@ -43,13 +47,14 @@ def save_img(item_id, item_name, img_url):
         os.mkdir(collect_path + item_id)
     filepath = collect_path + item_id + '/%s.png' % item_name
     if os.path.exists(filepath):
-        return
+        return False
     print(f'downloading {item_id}/{item_name} ...')
     print(f'img_url: {img_url}')
     resp = requests.get(img_url)
 
     with open(filepath, 'wb') as f:
         f.write(resp.content)
+    return True
 
 
 if __name__ == '__main__':

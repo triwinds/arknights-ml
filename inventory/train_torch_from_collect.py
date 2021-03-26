@@ -17,13 +17,15 @@ from focal_loss import FocalLoss
 collect_path = 'images/collect/'
 
 
-def update_resources():
+def update_resources(exit_if_not_update=False):
     from dl_data import download_icons
     print('更新素材')
-    download_icons()
+    updated = download_icons()
+    if not updated and exit_if_not_update:
+        exit(0)
 
 
-update_resources()
+update_resources(True)
 
 
 def dump_index_itemid_relation():

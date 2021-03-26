@@ -22,6 +22,7 @@ def update_resources(exit_if_not_update=False):
     print('更新素材')
     updated = download_icons()
     if not updated and exit_if_not_update:
+        print('Nothing new, exit.')
         exit(0)
 
 

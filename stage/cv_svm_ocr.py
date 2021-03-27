@@ -79,7 +79,21 @@ def predict(gray_img, model_file='svm_data1.dat'):
 
 def get_img_feature(img):
     # svm 中针对固定字体的图像, 直接 resize 图像作为特征比 hog 效果更好
-    return cv2.resize(img, (16, 16)).reshape((256, 1))
+    return resize_char(img).reshape(256, 1)
+
+
+def resize_char(img):
+    h, w = img.shape[:2]
+    scale = 16 / max(h, w)
+    h = int(h * scale)
+    w = int(w * scale)
+    img2 = np.zeros((16, 16)).astype(np.uint8)
+    img = cv2.resize(img, (w, h))
+
+    img2[0:h, 0:w] = ~img
+    # cv2.imshow('test', img2)
+    # cv2.waitKey()
+    return img2
 
 
 @lru_cache(2)
@@ -136,7 +150,7 @@ def crop_char_img(img):
                     last_x = x
                 break
         if not has_black and last_x:
-            if x - last_x > 5:
+            if x - last_x > 3:
                 min_y = None
                 max_y = None
                 for y1 in range(0, h):

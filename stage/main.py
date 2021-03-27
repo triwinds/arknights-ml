@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 import cv_svm_ocr
+import train_torch_from_chars
 
 img_cache = {}
 screenshot_cache = None
@@ -60,7 +61,7 @@ def image_to_position(image, m=0):
 
 
 def thresholding(image):
-    img = cv2.threshold(image, 180, 255, cv2.THRESH_BINARY)[1]
+    img = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     if img[0, 0] < 127:
         img = ~img
     return img
@@ -137,12 +138,16 @@ def prepare_train_resource(image_name, skip_save=False):
     global screenshot_cache
     image_path = 'images/' + str(image_name) + '.png'
     screen = screenshot_cache
-    template = resize_img(image_path)
+    img_h, img_w = screen.shape[:2]
+    if img_h != 1080:
+        ratio = 1080 / img_h
+        screen = cv2.resize(screen, (int(img_w * ratio), 1080))
+    template = img_cache.get(image_path, cv2.imread(image_path, 0))
     result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
     threshold = 0.7
     loc = np.where(result >= threshold)
     h, w = template.shape[:2]
-    img_h, img_w = screen.shape[:2]
+
     tag_set = set()
     tag_set2 = set()
     for pt in zip(*loc[::-1]):
@@ -163,8 +168,14 @@ def prepare_train_resource(image_name, skip_save=False):
             cv2.imwrite('images/tmp/t%s.png' % str(pos_key), tag)
             remove_holes(tag)
             cv2.imwrite('images/tmp/%s.png' % str(pos_key), tag)
-            tag_str = cv_svm_ocr.do_ocr(tag)
-            print(pt, tag_str)
+            svm_tag_str = cv_svm_ocr.do_ocr(tag)
+            print('svm', pt, svm_tag_str)
+            pt_tag_str = train_torch_from_chars.predict(tag)
+            print('pth', pt, pt_tag_str)
+            pt_cv_tag_str = train_torch_from_chars.predict_cv(tag)
+            print('pt_cv', pt, pt_cv_tag_str)
+            if svm_tag_str != pt_tag_str:
+                print('diff svm_tag_str, pt_tag_str', svm_tag_str, pt_tag_str)
 
             if not skip_save:
                 char_imgs = cv_svm_ocr.crop_char_img(tag)

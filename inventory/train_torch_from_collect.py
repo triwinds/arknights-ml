@@ -10,11 +10,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 from PIL import Image
+import torch.nn.functional as F
 
 import inventory
 from focal_loss import FocalLoss
 
 collect_path = 'images/collect/'
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def update_resources(exit_if_not_update=False):
@@ -70,12 +72,12 @@ def load_images():
                 if image.shape[-1] == 4:
                     image = image[..., :-1]
                 gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                img_map[filepath] = image
                 gray_img_map[filepath] = gray_img
                 img_files.append(filepath)
                 item_id_map[filepath] = cdir
                 circles = inventory.get_circles(gray_img, 50, 100)
                 circle_map[filepath] = circles[0]
+                img_map[filepath] = torch.from_numpy(np.transpose(image, (2, 0, 1))).float().to(device).unsqueeze(0)
     weights_t = 1 / torch.as_tensor(weights)
     return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
 
@@ -95,6 +97,17 @@ def crop_item_middle_img(cv_item_img, ox, oy, radius):
     return cv2.resize(cv_item_img[y1:y2, x1:x2], (64, 64))
 
 
+def crop_tensor_middle_img(cv_item_img, ox, oy, radius):
+    ratio = radius / 60
+    y1 = int(oy - (40 * ratio))
+    y2 = int(oy + (24 * ratio))
+    x1 = int(ox - (32 * ratio))
+    x2 = int(ox + (32 * ratio))
+    # return cv2.resize(cv_item_img[y1:y2, x1:x2], (64, 64))
+    img_t = cv_item_img[..., y1:y2, x1:x2]
+    return F.interpolate(img_t, size=64, mode='bilinear')
+
+
 def get_noise_data():
     images_np = np.random.rand(40, 64, 64, 3)
     labels_np = np.asarray(['other']).repeat(40)
@@ -104,11 +117,11 @@ def get_noise_data():
 max_resize_ratio = 100
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=10000)
 def get_resized_img(filepath, ratio):
-    img = img_map[filepath]
+    img_t = img_map[filepath]
     ratio = 1 + 0.2 * (ratio / max_resize_ratio)
-    return cv2.resize(img, None, fx=ratio, fy=ratio)
+    return F.interpolate(img_t, scale_factor=ratio, mode='bilinear')
 
 
 def get_data():
@@ -123,29 +136,24 @@ def get_data():
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
             ratio = np.random.randint(-max_resize_ratio, max_resize_ratio)
-            img = get_resized_img(filepath, ratio)
-            img = crop_item_middle_img(img, ox, oy, c[2])
-
-            image_aug = img
+            img_t = get_resized_img(filepath, ratio)
+            img_t = crop_tensor_middle_img(img_t, ox, oy, c[2])[0]
+            image_aug = img_t
 
             images.append(image_aug)
             labels.append(id2idx[item_id])
-    images_np = np.transpose(np.stack(images, 0), [0, 3, 1, 2])
-    labels_np = np.array(labels)
-
-    rand = np.random.RandomState(321)
-    shuffle = rand.permutation(len(images_np))
-    images_np = images_np[shuffle]
-    labels_np = labels_np[shuffle]
+    images_t = torch.stack(images)
+    labels_t = torch.from_numpy(np.array(labels)).long().to(device)
 
     # print(images_np.shape)
-    return images_np, labels_np
+    return images_t, labels_t
 
 
 class Cnn(nn.Module):
     def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
+
             nn.Conv2d(3, 10, 5, stride=2, padding=2),  # 10 * 32 * 32
             nn.ReLU(True),
             nn.AvgPool2d(4, 4))  # 10 * 8 * 8
@@ -156,6 +164,7 @@ class Cnn(nn.Module):
             nn.Linear(2*NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
+        x /= 255.
         out = self.conv(x)
         out = out.reshape(-1, 640)
         out = self.fc(out)
@@ -173,28 +182,26 @@ def compute_loss(x, label):
 
 
 def train():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     print('train on:', device)
     model = Cnn().to(device)
     optim = torch.optim.Adam(model.parameters(), lr=1e-3)
     model.train()
     step = 0
     prec = 0
-    target_step = 800
+    target_step = 2000
     while step < target_step or prec < 1 or step > 2*target_step:
-        images_aug_np, label_np = get_data()
-        images_aug = torch.from_numpy(images_aug_np).float().to(device)
-        label = torch.from_numpy(label_np).long().to(device)
+        images_t, labels_t = get_data()
         optim.zero_grad()
-        score = model(images_aug)
-        loss, prec = compute_loss(score, label)
+        score = model(images_t)
+        loss, prec = compute_loss(score, labels_t)
         loss.backward()
         optim.step()
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec.item())
         step += 1
     torch.save(model.state_dict(), './model.pth')
-    torch.onnx.export(model, images_aug, 'ark_material.onnx')
+    torch.onnx.export(model, images_t, 'ark_material.onnx')
 
 
 def load_model():
@@ -228,7 +235,7 @@ def test():
     items = inventory.get_all_item_img_in_screen(screen)
     roi_list = []
     for x in items:
-        roi = x['rectangle2'].copy()
+        roi = x['rectangle2']
         # roi = roi / 255
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)

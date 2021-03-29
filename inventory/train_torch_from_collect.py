@@ -28,13 +28,16 @@ def update_resources(exit_if_not_update=False):
         exit(0)
 
 
-update_resources(True)
+# update_resources(True)
 
 
 def dump_index_itemid_relation():
+    from dl_data import get_items_id_map
+    items_id_map = get_items_id_map()
     dump_data = {
         'idx2id': [],
-        'id2idx': {}
+        'id2idx': {},
+        'idx2name': []
     }
     collect_list = os.listdir('images/collect')
     collect_list.sort()
@@ -42,6 +45,7 @@ def dump_index_itemid_relation():
     for dirpath in collect_list:
         item_id = dirpath
         dump_data['idx2id'].append(item_id)
+        dump_data['idx2name'].append(items_id_map[item_id]['name'] if item_id != 'other' else '其它')
         dump_data['id2idx'][item_id] = index
         index += 1
     with open('index_itemid_relation.json', 'w') as f:
@@ -68,7 +72,7 @@ def load_images():
                 nparr = np.frombuffer(f.read(), np.uint8)
                 # convert to image array
                 image = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
-                image = cv2.resize(image, (128, 128))
+                image = cv2.resize(image, (140, 140))
                 if image.shape[-1] == 4:
                     image = image[..., :-1]
                 gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -77,7 +81,8 @@ def load_images():
                 item_id_map[filepath] = cdir
                 circles = inventory.get_circles(gray_img, 50, 100)
                 circle_map[filepath] = circles[0]
-                img_map[filepath] = torch.from_numpy(np.transpose(image, (2, 0, 1))).float().to(device).unsqueeze(0)
+                img_map[filepath] = torch.from_numpy(np.transpose(image, (2, 0, 1)))\
+                    .float().to(device)
     weights_t = 1 / torch.as_tensor(weights)
     return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
 
@@ -89,23 +94,26 @@ print('NUM_CLASS', NUM_CLASS)
 
 
 def crop_item_middle_img(cv_item_img, ox, oy, radius):
-    ratio = radius / 60
+    # ratio = radius / 60
+    ratio = 1
     y1 = int(oy - (40 * ratio))
-    y2 = int(oy + (24 * ratio))
-    x1 = int(ox - (32 * ratio))
-    x2 = int(ox + (32 * ratio))
-    return cv2.resize(cv_item_img[y1:y2, x1:x2], (64, 64))
+    y2 = int(oy + (20 * ratio))
+    x1 = int(ox - (30 * ratio))
+    x2 = int(ox + (30 * ratio))
+    # return cv2.resize(cv_item_img[y1:y2, x1:x2], (64, 64))
+    return cv_item_img[y1:y2, x1:x2]
 
 
 def crop_tensor_middle_img(cv_item_img, ox, oy, radius):
-    ratio = radius / 60
+    # ratio = radius / 60
+    ratio = 1
     y1 = int(oy - (40 * ratio))
-    y2 = int(oy + (24 * ratio))
-    x1 = int(ox - (32 * ratio))
-    x2 = int(ox + (32 * ratio))
-    # return cv2.resize(cv_item_img[y1:y2, x1:x2], (64, 64))
+    y2 = int(oy + (20 * ratio))
+    x1 = int(ox - (30 * ratio))
+    x2 = int(ox + (30 * ratio))
     img_t = cv_item_img[..., y1:y2, x1:x2]
-    return F.interpolate(img_t, size=64, mode='bilinear')
+    # return F.interpolate(img_t, size=64, mode='bilinear')
+    return img_t
 
 
 def get_noise_data():
@@ -135,9 +143,10 @@ def get_data():
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
-            ratio = np.random.randint(-max_resize_ratio, max_resize_ratio)
-            img_t = get_resized_img(filepath, ratio)
-            img_t = crop_tensor_middle_img(img_t, ox, oy, c[2])[0]
+            # ratio = np.random.randint(-max_resize_ratio, max_resize_ratio)
+            # img_t = get_resized_img(filepath, ratio)
+            img_t = img_map[filepath]
+            img_t = crop_tensor_middle_img(img_t, ox, oy, c[2])
             image_aug = img_t
 
             images.append(image_aug)
@@ -153,20 +162,19 @@ class Cnn(nn.Module):
     def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
-
-            nn.Conv2d(3, 10, 5, stride=2, padding=2),  # 10 * 32 * 32
+            nn.Conv2d(3, 5, 3, stride=2, padding=1),  # 5 * 30 * 30
             nn.ReLU(True),
-            nn.AvgPool2d(4, 4))  # 10 * 8 * 8
+            nn.AvgPool2d(5, 5))  # 5 * 6 * 6
 
         self.fc = nn.Sequential(
-            nn.Linear(640, 2*NUM_CLASS),
+            nn.Linear(180, 2*NUM_CLASS),
             nn.ReLU(True),
             nn.Linear(2*NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
         x /= 255.
         out = self.conv(x)
-        out = out.reshape(-1, 640)
+        out = out.reshape(-1, 180)
         out = self.fc(out)
         return out
 
@@ -182,14 +190,14 @@ def compute_loss(x, label):
 
 
 def train():
-
     print('train on:', device)
     model = Cnn().to(device)
     optim = torch.optim.Adam(model.parameters(), lr=1e-3)
     model.train()
     step = 0
     prec = 0
-    target_step = 2000
+    target_step = 3000
+    last_time = time.monotonic()
     while step < target_step or prec < 1 or step > 2*target_step:
         images_t, labels_t = get_data()
         optim.zero_grad()
@@ -198,7 +206,8 @@ def train():
         loss.backward()
         optim.step()
         if step < 10 or step % 10 == 0:
-            print(step, loss.item(), prec.item())
+            print(step, loss.item(), prec.item(), time.monotonic() - last_time)
+            last_time = time.monotonic()
         step += 1
     torch.save(model.state_dict(), './model.pth')
     torch.onnx.export(model, images_t, 'ark_material.onnx')
@@ -361,4 +370,3 @@ if __name__ == '__main__':
     # test_cv_onnx()
     # print(cv2.getBuildInformation())
     # test_single_img('images/collect/other\\罗德岛物资配给证书.png')
-

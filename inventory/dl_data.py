@@ -1,24 +1,51 @@
 import requests
 import bs4
 import os
+import json
 
 
 collect_path = 'images/collect/'
 
 
-def get_items_name_map():
+def update_items():
+    global items
+    print('update_items')
     resp = requests.get('https://penguin-stats.cn/PenguinStats/api/v2/items')
-    items = resp.json()
+    data = resp.json()
+    with open('items.json', 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False)
+    items = data
+    return data
+
+
+def get_items():
+    if not os.path.exists('items.json'):
+        return update_items()
+    else:
+        with open('items.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+
+items = get_items()
+
+
+def get_items_id_map():
+    res = {}
+    for item in items:
+        res[item['itemId']] = item
+    return res
+
+
+def get_items_name_map():
     res = {}
     for item in items:
         res[item['name']] = item
     return res
 
 
-items_name_map = get_items_name_map()
-
-
 def download_icons():
+    update_items()
+    items_name_map = get_items_name_map()
     resp = requests.get('http://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
     data_devs = soup.find_all("div", {"class": "smwdata"})

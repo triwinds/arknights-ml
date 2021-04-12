@@ -25,10 +25,10 @@ def update_resources(exit_if_not_update=False):
     updated = download_icons()
     if not updated and exit_if_not_update:
         print('Nothing new, exit.')
-        exit(-1)
+        exit(0)
 
 
-update_resources(True)
+update_resources(False)
 
 
 def dump_index_itemid_relation():
@@ -206,7 +206,7 @@ def train():
         loss, prec = compute_loss(score, labels_t)
         loss.backward()
         optim.step()
-        if step < 10 or step % 10 == 0:
+        if step < 10 or step % 50 == 0:
             print(step, loss.item(), prec.item(), time.monotonic() - last_time)
             last_time = time.monotonic()
         step += 1

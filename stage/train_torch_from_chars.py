@@ -60,7 +60,7 @@ def load_images():
             with open(filepath, 'rb') as f:
                 nparr = np.frombuffer(f.read(), np.uint8)
                 image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                image = resize_char(image) / 255.
+                image = resize_char(image)
                 image = np.expand_dims(image, 0)
                 l = img_map.get(cdir, [])
                 l.append(image)
@@ -81,14 +81,7 @@ def get_data():
         idxs = np.random.choice(range(len(img_map[c])), 20)
         for idx in idxs:
             img = img_map[c][idx]
-            # scale = 1 + np.random.randint(0, 100) / 100
-            # img = cv2.resize(img, None, fx=scale, fy=scale)
-            #
-            # img = cv2.resize(img, (16, 16))
-
-            # image_aug = cv_svm_ocr.threshold_cv_img(img)
             image_aug = img
-
             images.append(image_aug)
             labels.append(id2idx[c])
     images_np = np.stack(images, 0)
@@ -107,18 +100,20 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 5, (5, 3), stride=(2, 1), padding=(2, 1)),
-            nn.ReLU(True))
+            nn.Conv2d(1, 64, 3, stride=1, padding=1),   # 64 * 16 * 16
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.MaxPool2d(4, 4))                         # 64 * 4 * 4
 
         self.fc = nn.Sequential(
-            nn.Linear(5 * 8 * 16, 2 * NUM_CLASS),
-            nn.ReLU(True),
-            nn.Linear(2 * NUM_CLASS, NUM_CLASS))
+            nn.Linear(64 * 4 * 4, NUM_CLASS))
 
     def forward(self, x):
+        x = x / 255.
         out = self.conv(x)
-        out = out.reshape(-1, 5 * 8 * 16)
+        out = out.reshape(-1, 64 * 4 * 4)
         out = self.fc(out)
+
         return out
 
 
@@ -151,11 +146,12 @@ def train():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('train on:', device)
     model = Net().to(device)
+    loss_func.to(device)
     optim = torch.optim.Adam(model.parameters(), lr=1e-3)
     model.train()
     step = 0
     prec = 0
-    target_step = 3000
+    target_step = 1500
     while step < target_step:
         images_aug_np, label_np = get_data()
         images_aug = torch.from_numpy(images_aug_np).float().to(device)

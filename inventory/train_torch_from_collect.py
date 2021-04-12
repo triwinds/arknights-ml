@@ -25,10 +25,10 @@ def update_resources(exit_if_not_update=False):
     updated = download_icons()
     if not updated and exit_if_not_update:
         print('Nothing new, exit.')
-        exit(0)
+        exit(-1)
 
 
-# update_resources(True)
+update_resources(True)
 
 
 def dump_index_itemid_relation():
@@ -180,6 +180,7 @@ class Cnn(nn.Module):
 
 
 focalloss = FocalLoss(NUM_CLASS, alpha=weights_t)
+focalloss.to(device)
 # BCEWithLogitsLoss = nn.BCEWithLogitsLoss(weights_t)
 
 

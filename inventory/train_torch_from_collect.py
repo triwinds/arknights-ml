@@ -17,6 +17,8 @@ from focal_loss import FocalLoss
 
 collect_path = 'images/collect/'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    torch.backends.cudnn.benchmark = True
 
 
 def update_resources(exit_if_not_update=False):
@@ -83,7 +85,9 @@ def load_images():
                 circle_map[filepath] = circles[0]
                 img_map[filepath] = torch.from_numpy(np.transpose(image, (2, 0, 1)))\
                     .float().to(device)
-    weights_t = 1 / torch.as_tensor(weights)
+    weights_t = torch.as_tensor(weights)
+    weights_t[weights_t > 50] = 50
+    weights_t = 1 / weights_t
     return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
 
 
@@ -162,30 +166,36 @@ class Cnn(nn.Module):
     def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(3, 5, 3, stride=2, padding=1),  # 5 * 30 * 30
+            nn.Conv2d(3, 32, 5, stride=3, padding=2),  # 32 * 20 * 20
+            nn.BatchNorm2d(32),
             nn.ReLU(True),
-            nn.AvgPool2d(5, 5))  # 5 * 6 * 6
+            nn.AvgPool2d(5, 5),  # 32 * 4 * 4
+            nn.Conv2d(32, 32, 3, stride=2, padding=1),  # 32 * 2 * 2
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
+            # nn.AvgPool2d(2, 2),
+        )
 
         self.fc = nn.Sequential(
-            nn.Linear(180, 2*NUM_CLASS),
+            nn.Linear(32 * 2 * 2, 2 * NUM_CLASS),
             nn.ReLU(True),
-            nn.Linear(2*NUM_CLASS, NUM_CLASS))
+            nn.Linear(2 * NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
         x /= 255.
         out = self.conv(x)
-        out = out.reshape(-1, 180)
+        out = out.reshape(-1, 32 * 2 * 2)
         out = self.fc(out)
         return out
 
 
-focalloss = FocalLoss(NUM_CLASS, alpha=weights_t)
-focalloss.to(device)
+criterion = FocalLoss(NUM_CLASS, alpha=weights_t)
+criterion.to(device)
 # BCEWithLogitsLoss = nn.BCEWithLogitsLoss(weights_t)
 
 
 def compute_loss(x, label):
-    loss = focalloss(x, label)
+    loss = criterion(x, label)
     prec = (x.argmax(1) == label).float().mean()
     return loss, prec
 
@@ -197,7 +207,7 @@ def train():
     model.train()
     step = 0
     prec = 0
-    target_step = 3000
+    target_step = 1500
     last_time = time.monotonic()
     while step < target_step or prec < 1 or step > 2*target_step:
         images_t, labels_t = get_data()

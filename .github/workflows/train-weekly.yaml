@@ -1,11 +1,9 @@
-name: train model
+name: train model (weekly)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '30 */8 * * *'
+    - cron: '0 10 * * 0'
 
 jobs:
   build:
@@ -33,16 +31,11 @@ jobs:
       run: pip install -r requirements.txt
     - name: train inventory model
       run: |
-        cd inventory && python train_torch_from_collect.py
-#    - name: Upload artifact
-#      uses: actions/upload-artifact@v2.1.4
-#      with:
-#        name: ark_material.onnx
-#        path: inventory/ark_material.onnx
+        cd inventory && rm -rf images/collect/* && python train_torch_from_collect.py
     - name: Commit changes
       uses: EndBug/add-and-commit@v7
       with:
         author_name: github-actions
         author_email: 41898282+github-actions[bot]@users.noreply.github.com
-        message: 'auto update by git action'
+        message: 'auto update by git action (weekly)'
         add: '.'

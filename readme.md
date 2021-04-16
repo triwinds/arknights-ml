@@ -6,6 +6,8 @@
 
 库存物品识别
 
+onnx model: [download](https://github.com/CJN96/arknights-ml/raw/main/inventory/ark_material.onnx)
+
 ## 配置环境
 
 ```shell

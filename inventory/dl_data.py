@@ -2,6 +2,8 @@ import requests
 import bs4
 import os
 import json
+import hashlib
+import shutil
 
 
 collect_path = 'images/collect/'
@@ -11,11 +13,30 @@ def update_items():
     global items
     print('update_items')
     resp = requests.get('https://penguin-stats.cn/PenguinStats/api/v2/items')
-    data = resp.json()
+    md5 = hashlib.md5()
+    md5.update(resp.content)
+    data = {
+        'hash': md5.hexdigest(),
+        'data': resp.json()
+    }
+    remove_flag = False
+    if os.path.exists('items.json'):
+        with open('items.json', 'r', encoding='utf-8') as f:
+            old_data = json.load(f)
+            if old_data.get('hash') != data['hash']:
+                remove_flag = True
+    else:
+        remove_flag = True
+
+    if remove_flag:
+        print('remove old collect')
+        shutil.rmtree(collect_path)
+        os.mkdir(collect_path)
+
     with open('items.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False)
-    items = data
-    return data
+    items = data['data']
+    return data['data']
 
 
 def get_items():
@@ -23,7 +44,7 @@ def get_items():
         return update_items()
     else:
         with open('items.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            return json.load(f)['data']
 
 
 items = get_items()
@@ -70,6 +91,8 @@ def download_icons():
 
 
 def save_img(item_id, item_name, img_url):
+    if img_url == '':
+        return True
     if not os.path.exists(collect_path + item_id):
         os.mkdir(collect_path + item_id)
     filepath = collect_path + item_id + '/%s.png' % item_name

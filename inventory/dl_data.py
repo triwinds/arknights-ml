@@ -92,6 +92,7 @@ def download_icons():
 
 def save_img(item_id, item_name, img_url):
     if img_url == '':
+        print(f'skip {item_name}, img_url: {img_url}')
         return False
     if not os.path.exists(collect_path + item_id):
         os.mkdir(collect_path + item_id)

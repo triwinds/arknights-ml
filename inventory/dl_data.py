@@ -12,12 +12,15 @@ collect_path = 'images/collect/'
 def update_items():
     global items
     print('update_items')
-    resp = requests.get('https://penguin-stats.cn/PenguinStats/api/v2/items')
+    resp = requests.get(
+        'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     md5 = hashlib.md5()
     md5.update(resp.content)
+    items_map = resp.json()['items']
+    items = [item for item in items_map.values()]
     data = {
         'hash': md5.hexdigest(),
-        'data': resp.json()
+        'data': items
     }
     remove_flag = False
     if os.path.exists('items.json'):
@@ -78,13 +81,14 @@ def download_icons():
         item_name = data_dev['data-name']
         item = items_name_map.get(item_name)
         item_id = 'other'
-        if item and item['itemType'] in ['MATERIAL', 'ARKPLANNER']:
+        if item and item['itemType'] in ['MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM']:
             item_id = item['itemId']
-            if not item_id.isdigit() or len(item_id) < 5:
+            if item['itemType'] != 'ACTIVITY_ITEM' and not item_id.isdigit() or len(item_id) < 5:
                 item_id = 'other'
         flag = save_img(item_id, item_name, data_dev['data-file'])
         if flag:
             update_flag = True
+            print(item)
         c += 1
         # print(f'{c}/{total} {item_name}')
     return update_flag
@@ -101,11 +105,17 @@ def save_img(item_id, item_name, img_url):
         return False
     print(f'downloading {item_id}/{item_name} ...')
     print(f'img_url: {img_url}')
-    resp = requests.get(img_url)
-
-    with open(filepath, 'wb') as f:
-        f.write(resp.content)
-    return True
+    rc = 0
+    while rc <= 3:
+        try:
+            resp = requests.get(img_url)
+            with open(filepath, 'wb') as f:
+                f.write(resp.content)
+            return True
+        except Exception as e:
+            print(e)
+            rc += 1
+    raise RuntimeError(f'save_img reach max retry count, {item_id, item_name, img_url}')
 
 
 if __name__ == '__main__':

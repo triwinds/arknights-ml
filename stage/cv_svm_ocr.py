@@ -150,7 +150,7 @@ def crop_char_img(img):
                     last_x = x
                 break
         if not has_black and last_x:
-            if x - last_x > 3:
+            if x - last_x >= 3:
                 min_y = None
                 max_y = None
                 for y1 in range(0, h):

@@ -238,6 +238,15 @@ def move_to_char2():
             cv2.imwrite(char2_dir + '/%s/' % train_char + file_name, img2)
 
 
+def test_img(img):
+    img = thresholding(img)
+    remove_holes(img)
+    s = cv_svm_ocr.do_ocr(img)
+    print(s)
+    s = train_torch_from_chars.predict_cv(img)
+    print(s)
+
+
 if __name__ == '__main__':
     # with open('images/screen.png', 'rb') as f:
     #     content = f.read()
@@ -255,8 +264,8 @@ if __name__ == '__main__':
     #     if s == 'n':
     #         break
 
-    # screenshot()
-    # save_screenshot()
+    screenshot()
+    save_screenshot()
 
     # img = cv2.imread('images/battle_start.png', 1)
     # img = resize_cv_img(img, 2/3, cv2.INTER_AREA)
@@ -264,8 +273,11 @@ if __name__ == '__main__':
 
     # save_screenshot()
 
-    get_train_resource(True)
+    # get_train_resource(True)
 
     # move_to_char2()
     # print(os.listdir('images/chars2'))
 
+    # image = cv2.imread('images/screen.png')
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # test_img(image)

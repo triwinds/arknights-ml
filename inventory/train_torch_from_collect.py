@@ -39,7 +39,8 @@ def dump_index_itemid_relation():
     dump_data = {
         'idx2id': [],
         'id2idx': {},
-        'idx2name': []
+        'idx2name': [],
+        'idx2type': []
     }
     collect_list = os.listdir('images/collect')
     collect_list.sort()
@@ -48,6 +49,7 @@ def dump_index_itemid_relation():
         item_id = dirpath
         dump_data['idx2id'].append(item_id)
         dump_data['idx2name'].append(items_id_map[item_id]['name'] if item_id != 'other' else '其它')
+        dump_data['idx2type'].append(items_id_map[item_id]['itemType'] if item_id != 'other' else 'other')
         dump_data['id2idx'][item_id] = index
         index += 1
     with open('index_itemid_relation.json', 'w') as f:

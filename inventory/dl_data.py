@@ -4,15 +4,21 @@ import os
 import json
 import hashlib
 import shutil
+from retry import retry
 
 
 collect_path = 'images/collect/'
 
 
+@retry(tries=3)
+def request_get(url):
+    return requests.get(url)
+
+
 def update_items():
     global items
     print('update_items')
-    resp = requests.get(
+    resp = request_get(
         'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     md5 = hashlib.md5()
     md5.update(resp.content)
@@ -70,7 +76,7 @@ def get_items_name_map():
 def download_icons():
     update_items()
     items_name_map = get_items_name_map()
-    resp = requests.get('http://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
+    resp = request_get('http://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
     data_devs = soup.find_all("div", {"class": "smwdata"})
     # print(data_devs[0])
@@ -108,7 +114,7 @@ def save_img(item_id, item_name, img_url):
     rc = 0
     while rc <= 3:
         try:
-            resp = requests.get(img_url)
+            resp = request_get(img_url)
             with open(filepath, 'wb') as f:
                 f.write(resp.content)
             return True

@@ -1,9 +1,9 @@
-name: train model (weekly)
+name: train model (monthly)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 10 * * 0'
+    - cron: '0 10 1 * *'
 
 jobs:
   build:

@@ -80,7 +80,7 @@ def download_icons():
     update_items()
     flag1 = download_from_items_page()
     flag2 = download_latest_event_icons()
-    return flag1 and flag2
+    return flag1 or flag2
 
 
 def download_from_items_page():

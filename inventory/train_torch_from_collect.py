@@ -9,8 +9,8 @@ import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image
 import torch.nn.functional as F
+from PIL import Image
 
 import inventory
 from focal_loss import FocalLoss
@@ -40,7 +40,8 @@ def dump_index_itemid_relation():
         'idx2id': [],
         'id2idx': {},
         'idx2name': [],
-        'idx2type': []
+        'idx2type': [],
+        'time': int(time.time() * 1000)
     }
     collect_list = os.listdir('images/collect')
     collect_list.sort()

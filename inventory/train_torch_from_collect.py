@@ -53,8 +53,8 @@ def dump_index_itemid_relation():
         dump_data['idx2type'].append(items_id_map[item_id]['itemType'] if item_id != 'other' else 'other')
         dump_data['id2idx'][item_id] = index
         index += 1
-    with open('index_itemid_relation.json', 'w') as f:
-        json.dump(dump_data, f)
+    with open('index_itemid_relation.json', 'w', encoding='utf-8') as f:
+        json.dump(dump_data, f, ensure_ascii=False)
     return dump_data['idx2id'], dump_data['id2idx']
 
 

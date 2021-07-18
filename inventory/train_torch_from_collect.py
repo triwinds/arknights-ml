@@ -225,6 +225,9 @@ def train():
         step += 1
     torch.save(model.state_dict(), './model.pth')
     torch.onnx.export(model, images_t, 'ark_material.onnx')
+    from dl_data import request_get
+    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/index_itemid_relation.json', True)
+    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/ark_material.onnx', True)
 
 
 def load_model():

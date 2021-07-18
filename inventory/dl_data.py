@@ -12,9 +12,13 @@ from retry import retry
 collect_path = 'images/collect/'
 
 
-@retry(tries=5)
-def request_get(url):
-    return requests.get(url, timeout=3)
+@retry(tries=10)
+def request_get(url, print_resp=False):
+    print('request_get:', url)
+    resp = requests.get(url, timeout=3)
+    if print_resp:
+        print(resp.content.decode('utf-8'))
+    return resp
 
 
 def update_items():

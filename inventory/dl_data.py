@@ -12,9 +12,9 @@ from retry import retry
 collect_path = 'images/collect/'
 
 
-@retry(tries=3)
+@retry(tries=5)
 def request_get(url):
-    return requests.get(url)
+    return requests.get(url, timeout=3)
 
 
 def update_items():

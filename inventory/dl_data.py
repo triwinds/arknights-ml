@@ -109,14 +109,13 @@ def download_from_items_page():
 
 def download_latest_event_icons():
     print('checking event page...')
-    resp = request_get('http://prts.wiki/w/%E9%A6%96%E9%A1%B5')
+    resp = request_get('http://prts.wiki/w/%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
-    event_menu = soup.find_all(text='当前活动')
+    event_tags = soup.find_all(text=' 进行中')
     update_flag = False
-    if event_menu:
-        li = event_menu[0].parent.parent
-        a_list = li.find_all('a')
-        for a_tag in a_list:
+    if event_tags:
+        for event_tag in event_tags:
+            a_tag = event_tag.parent.parent.find_previous_sibling('a')
             event_url = 'http://prts.wiki' + a_tag['href']
             print('handle event:', a_tag.text)
             flag = download_from_event_page(event_url)
@@ -175,6 +174,6 @@ def save_img(item_name, img_url):
 
 
 if __name__ == '__main__':
-    download_icons()
-    # print(download_latest_event_icons())
+    # download_icons()
+    print(download_latest_event_icons())
     # download_from_event_page('http://prts.wiki/w/%E5%AF%86%E6%9E%97%E6%82%8D%E5%B0%86%E5%BD%92%E6%9D%A52021#%E5%A4%A7%E9%85%8B%E9%95%BF%E4%B9%8B%E8%B7%AF')

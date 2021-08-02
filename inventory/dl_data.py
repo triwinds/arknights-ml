@@ -148,7 +148,7 @@ def save_img(item_name, img_url):
     item_id = 'other'
     if item and item['itemType'] in {'MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM'}:
         item_id = item['itemId']
-        if item['itemType'] != 'ACTIVITY_ITEM' and not item_id.isdigit() or len(item_id) < 5:
+        if item['itemType'] != 'ACTIVITY_ITEM' and not item_id.isdigit():
             item_id = 'other'
     if img_url == '':
         print(f'skip {item_name}, img_url: {img_url}')
@@ -174,6 +174,6 @@ def save_img(item_name, img_url):
 
 
 if __name__ == '__main__':
-    # download_icons()
-    print(download_latest_event_icons())
+    download_icons()
+    # print(download_latest_event_icons())
     # download_from_event_page('http://prts.wiki/w/%E5%AF%86%E6%9E%97%E6%82%8D%E5%B0%86%E5%BD%92%E6%9D%A52021#%E5%A4%A7%E9%85%8B%E9%95%BF%E4%B9%8B%E8%B7%AF')

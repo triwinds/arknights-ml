@@ -146,7 +146,7 @@ def get_data():
         item_id = item_id_map[filepath]
 
         c = circle_map[filepath]
-        t = 30 if item_id.isdigit() else 1
+        t = 8 if item_id != 'other' else 1
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)

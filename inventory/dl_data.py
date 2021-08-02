@@ -24,8 +24,10 @@ def request_get(url, print_resp=False):
 def update_items():
     global items
     print('update_items')
+    # resp = request_get(
+    #     'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     resp = request_get(
-        'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
+        'https://raw.fastgit.org/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     md5 = hashlib.md5()
     md5.update(resp.content)
     items_map = resp.json()['items']
@@ -142,12 +144,16 @@ def download_from_event_page(event_url):
     return update_flag
 
 
+exp_books = set([str(i) for i in range(2001, 2005)])
+
+
 def save_img(item_name, img_url):
     items_name_map = get_items_name_map()
     item = items_name_map.get(item_name)
     item_id = 'other'
-    if item and item['itemType'] in {'MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM'}:
-        item_id = item['itemId']
+    if item:
+        if item['itemType'] in {'MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM'} or item['itemId'].isdigit():
+            item_id = item['itemId']
         if item['itemType'] != 'ACTIVITY_ITEM' and not item_id.isdigit():
             item_id = 'other'
     if img_url == '':

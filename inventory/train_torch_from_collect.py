@@ -30,7 +30,7 @@ def update_resources(exit_if_not_update=False):
         exit(0)
 
 
-# update_resources(True)
+update_resources(True)
 
 
 def dump_index_itemid_relation():

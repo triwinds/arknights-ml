@@ -80,7 +80,7 @@ def download_icons():
 
 def download_from_items_page():
     print('checking item page...')
-    resp = request_get('http://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
+    resp = request_get('https://prts.shadowfox.workers.dev/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
     data_devs = soup.find_all("div", {"class": "smwdata"})
     # print(data_devs[0])
@@ -100,7 +100,7 @@ def download_from_items_page():
 
 def download_latest_event_icons():
     print('checking event page...')
-    resp = request_get('http://prts.wiki/w/%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88')
+    resp = request_get('https://prts.shadowfox.workers.dev/w/%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
     event_tags = soup.find_all(text=' 进行中')
     event_tags += soup.find_all(text='未开始')
@@ -108,7 +108,7 @@ def download_latest_event_icons():
     if event_tags:
         for event_tag in event_tags:
             a_tag = event_tag.parent.parent.find_previous_sibling('a')
-            event_url = 'http://prts.wiki' + a_tag['href']
+            event_url = 'https://prts.shadowfox.workers.dev' + a_tag['href']
             print('handle event:', a_tag.text)
             flag = download_from_event_page(event_url)
             if flag:
@@ -130,7 +130,7 @@ def download_from_event_page(event_url):
             continue
         item_set.add(item_img['alt'])
         item_name = item_img.parent['title']
-        img_url = 'http://prts.wiki' + item_img['data-srcset'].split(', ')[-1][:-3]
+        img_url = 'https://prts.shadowfox.workers.dev' + item_img['data-srcset'].split(', ')[-1][:-3]
         flag = save_item(item_name, img_url)
         if flag:
             update_flag = True
@@ -181,4 +181,4 @@ def save_img(item_id, item_name, img_url):
 if __name__ == '__main__':
     download_icons()
     # print(download_latest_event_icons())
-    # download_from_event_page('http://prts.wiki/w/%E5%AF%86%E6%9E%97%E6%82%8D%E5%B0%86%E5%BD%92%E6%9D%A52021#%E5%A4%A7%E9%85%8B%E9%95%BF%E4%B9%8B%E8%B7%AF')
+    # download_from_event_page('https://prts.shadowfox.workers.dev/w/%E5%AF%86%E6%9E%97%E6%82%8D%E5%B0%86%E5%BD%92%E6%9D%A52021#%E5%A4%A7%E9%85%8B%E9%95%BF%E4%B9%8B%E8%B7%AF')

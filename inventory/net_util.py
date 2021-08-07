@@ -3,7 +3,7 @@ from retry import retry
 
 
 @retry(tries=10)
-def request_get(url, print_resp=False):
+def request_get(url, print_resp=False, timeout=6):
     headers = {
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
@@ -22,9 +22,9 @@ def request_get(url, print_resp=False):
     }
     print('request_get:', url)
     if 'prts.wiki' in url:
-        resp = requests.get(url, timeout=3, headers=headers, cookies=cookies)
+        resp = requests.get(url, timeout=timeout, headers=headers, cookies=cookies)
     else:
-        resp = requests.get(url, timeout=3)
+        resp = requests.get(url, timeout=timeout)
     if print_resp:
         print(resp.content.decode('utf-8'))
     return resp

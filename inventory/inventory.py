@@ -1,7 +1,11 @@
-import numpy as np
-import cv2
 import json
+import os
+import subprocess
+from io import BytesIO
 
+import cv2
+import numpy as np
+from PIL import Image
 
 
 def load_item_map():
@@ -17,7 +21,7 @@ def load_item_map():
 item_map = load_item_map()
 
 
-def get_all_item_img_in_screen(pil_screen):
+def get_all_item_img_in_screen(pil_screen, box_ratio=2.4):
     # 720p
     cv_screen = cv2.cvtColor(np.asarray(pil_screen), cv2.COLOR_BGR2RGB)
     dbg_screen = cv_screen.copy()
@@ -33,7 +37,8 @@ def get_all_item_img_in_screen(pil_screen):
         return []
     res = []
     for c in circles:
-        x, y, box_size = int(c[0] - int(c[2] * 2.4) // 2), int(c[1] - int(c[2] * 2.4) // 2), int(c[2] * 2.4)
+        x, y, box_size = int(c[0] - int(c[2] * box_ratio) // 2), \
+                         int(c[1] - int(c[2] * box_ratio) // 2), int(c[2] * box_ratio)
         if x > 0 and x + box_size < img_w:
             cv2.rectangle(dbg_screen, (x, y), (x + box_size, y + box_size), (7, 249, 151), 3)
             cv_item_img = cv_screen[y:y + box_size, x:x + box_size, :]
@@ -118,22 +123,22 @@ def crop_item_img(item_img, item_gray_img, circle):
     return out
 
 
+def screenshot():
+    content = subprocess.check_output('adb exec-out "screencap -p"', shell=True)
+    if os.name == 'nt':
+        content = content.replace(b'\r\n', b'\n')
+    # with open('images/screen.png', 'wb') as f:
+    #     f.write(content)
+    # img_array = np.asarray(bytearray(content), dtype=np.uint8)
+    return Image.open(BytesIO(content))
+
+
 def show_img(cv_img):
     cv2.imshow('test', cv_img)
     return cv2.waitKey(0)
 
 
-def predict(circle_img):
-    gray_img = cv2.cvtColor(circle_img, cv2.COLOR_BGR2GRAY)
-    # show_img(gray_img)
-    feature = get_img_feature(gray_img)
-    res = svm.predict(np.float32([feature]))
-    item_id = res[1][0][0]
-    return item_map[item_id]
-
-
 if __name__ == '__main__':
-    from PIL import Image
 
     screen = Image.open('images/screen.png')
     item_images = get_all_item_img_in_screen(screen)

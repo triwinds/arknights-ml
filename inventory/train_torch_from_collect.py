@@ -2,14 +2,14 @@ import json
 import os
 import subprocess
 import time
-from functools import lru_cache
+# from functools import lru_cache
 from io import BytesIO
 
 import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+# import torch.nn.functional as F
 from PIL import Image
 
 import inventory
@@ -30,7 +30,7 @@ def update_resources(exit_if_not_update=False):
         exit(0)
 
 
-update_resources(True)
+# update_resources(True)
 
 
 def dump_index_itemid_relation():
@@ -49,13 +49,47 @@ def dump_index_itemid_relation():
     for dirpath in collect_list:
         item_id = dirpath
         dump_data['idx2id'].append(item_id)
-        dump_data['idx2name'].append(items_id_map[item_id]['name'] if item_id != 'other' else '其它')
-        dump_data['idx2type'].append(items_id_map[item_id]['itemType'] if item_id != 'other' else 'other')
+        dump_data['idx2name'].append(get_item_name(item_id, items_id_map))
+        dump_data['idx2type'].append(get_item_type(item_id, items_id_map))
         dump_data['id2idx'][item_id] = index
         index += 1
     with open('index_itemid_relation.json', 'w', encoding='utf-8') as f:
         json.dump(dump_data, f, ensure_ascii=False)
-    return dump_data['idx2id'], dump_data['id2idx']
+    return dump_data['idx2id'], dump_data['id2idx'], dump_data['idx2name']
+
+
+def get_item_name(item_id, items_id_map):
+    item_name = '其它'
+    if item_id.startswith('@'):
+        item_name = get_manual_item_name(item_id)
+    elif item_id != 'other':
+        item_name = items_id_map[item_id]['name']
+    return item_name
+
+
+def get_manual_item_name(item_id):
+    default_name = item_id
+    tmp_map = {
+        '@charm_r0_p9': '黄金筹码',
+        '@charm_r0_p12': '错版硬币',
+        '@charm_r0_p18': '双日城大乐透',
+        '@charm_r1_p20': '标志物 - 20代金券',
+        '@charm_r2_p40': '标志物 - 40代金券',
+        '@charm_r3_p60': '沙兹专业镀膜装置',
+        '@charm_r3_p150': '翡翠庭院至臻',
+    }
+    return tmp_map.get(item_id, default_name)
+
+
+def get_item_type(item_id, items_id_map):
+    item_type = 'other'
+    if item_id.startswith('@'):
+        item_type = 'manual_collect'
+        if item_id.startswith('@charm'):
+            item_type = 'special_report_item'
+    elif item_id != 'other':
+        item_type = items_id_map[item_id]['itemType']
+    return item_type
 
 
 def load_images():
@@ -94,8 +128,7 @@ def load_images():
     return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
 
 
-idx2id, id2idx = dump_index_itemid_relation()
-img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t = load_images()
+idx2id, id2idx, idx2name = dump_index_itemid_relation()
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -132,21 +165,21 @@ def get_noise_data():
 max_resize_ratio = 100
 
 
-@lru_cache(maxsize=10000)
-def get_resized_img(filepath, ratio):
-    img_t = img_map[filepath]
-    ratio = 1 + 0.2 * (ratio / max_resize_ratio)
-    return F.interpolate(img_t, scale_factor=ratio, mode='bilinear')
+# @lru_cache(maxsize=10000)
+# def get_resized_img(img_map, filepath, ratio):
+#     img_t = img_map[filepath]
+#     ratio = 1 + 0.2 * (ratio / max_resize_ratio)
+#     return F.interpolate(img_t, scale_factor=ratio, mode='bilinear')
 
 
-def get_data():
+def get_data(img_files, item_id_map, circle_map, img_map):
     images = []
     labels = []
     for filepath in img_files:
         item_id = item_id_map[filepath]
 
         c = circle_map[filepath]
-        t = 8 if item_id != 'other' else 1
+        t = 4 if item_id != 'other' else 1
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
@@ -192,18 +225,16 @@ class Cnn(nn.Module):
         return out
 
 
-criterion = FocalLoss(NUM_CLASS, alpha=weights_t)
-criterion.to(device)
-# BCEWithLogitsLoss = nn.BCEWithLogitsLoss(weights_t)
-
-
-def compute_loss(x, label):
-    loss = criterion(x, label)
-    prec = (x.argmax(1) == label).float().mean()
-    return loss, prec
-
-
 def train():
+    img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t = load_images()
+    criterion = FocalLoss(NUM_CLASS, alpha=weights_t)
+    criterion.to(device)
+
+    def compute_loss(x, label):
+        loss = criterion(x, label)
+        prec = (x.argmax(1) == label).float().mean()
+        return loss, prec
+
     print('train on:', device)
     model = Cnn().to(device)
     optim = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -213,7 +244,7 @@ def train():
     target_step = 1500
     last_time = time.monotonic()
     while step < target_step or prec < 1 or step > 2*target_step:
-        images_t, labels_t = get_data()
+        images_t, labels_t = get_data(img_files, item_id_map, circle_map, img_map)
         optim.zero_grad()
         score = model(images_t)
         loss, prec = compute_loss(score, labels_t)
@@ -224,7 +255,7 @@ def train():
             last_time = time.monotonic()
         step += 1
     torch.save(model.state_dict(), './model.pth')
-    torch.onnx.export(model, images_t, 'ark_material.onnx')
+    torch.onnx.export(model, torch.rand((1, 3, 60, 60)).to(device), 'ark_material.onnx')
     from dl_data import request_get
     request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/index_itemid_relation.json', True)
     request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/ark_material.onnx', True)
@@ -251,13 +282,13 @@ def predict(model, roi_list):
 
     probs = probs.cpu().data.numpy()
     predicts = predicts.cpu().data.numpy()
-    return [idx2id[p] for p in predicts], [probs[i, predicts[i]] for i in range(len(roi_list))]
+    return [(idx2id[idx], idx) for idx in predicts], [probs[i, predicts[i]] for i in range(len(roi_list))]
 
 
 def test():
     model = load_model()
-    screen = Image.open('images/screen.png')
-    # screen = screenshot()
+    # screen = Image.open('images/screen.png')
+    screen = inventory.screenshot()
     items = inventory.get_all_item_img_in_screen(screen)
     roi_list = []
     for x in items:
@@ -268,12 +299,13 @@ def test():
     res = predict(model, roi_list)
     print(res)
     for i in range(len(res[0])):
-        item_id = res[0][i]
+        item_id = res[0][i][0]
+        idx = res[0][i][1]
         if item_id == 'other':
             print(res[1][i], 'other')
         else:
-            print(res[1][i], inventory.item_map[item_id])
-        # inventory.show_img(items[i]['rectangle'])
+            print(res[1][i], item_id, inventory.item_map.get(item_id), idx2name[idx])
+        inventory.show_img(items[i]['rectangle'])
 
 
 def screenshot():
@@ -294,7 +326,7 @@ def save_collect_img(item_id, img):
 
 def prepare_train_resource():
     model = load_model()
-    screen = screenshot()
+    screen = inventory.screenshot()
     items = inventory.get_all_item_img_in_screen(screen)
     roi_list = []
     for x in items:
@@ -316,6 +348,13 @@ def prepare_train_resource():
                 item_id = 'other'
         print(item_id)
         save_collect_img(item_id, items[i]['rectangle'])
+
+
+def prepare_train_resource2():
+    screen = inventory.screenshot()
+    items = inventory.get_all_item_img_in_screen(screen, 2.15)
+    for item in items:
+        cv2.imwrite(f'images/manual_collect/{int(time.time() * 1000)}', item['rectangle'])
 
 
 def softmax(x):
@@ -362,28 +401,11 @@ def export_onnx():
     torch.onnx.export(model, roi_t, 'ark_material.onnx')
 
 
-def test_single_img(img_path=''):
-    model = load_model()
-    image = img_map[img_path]
-    roi_list = []
-    roi = inventory.crop_item_middle_img(image, 60)
-    roi = np.transpose(roi, (2, 0, 1))
-    # inventory.show_img(roi)
-    roi_list.append(roi)
-    res = predict(model, roi_list)
-    item_id = res[0][0]
-    if item_id == 'other':
-        print(res[1][0], 'other')
-    else:
-        print(res[1][0], inventory.item_map[item_id])
-    inventory.show_img(image)
-
-
 if __name__ == '__main__':
     train()
     # test()
     # prepare_train_resource()
+    # prepare_train_resource2()
     # export_onnx()
     # test_cv_onnx()
     # print(cv2.getBuildInformation())
-    # test_single_img('images/collect/other\\罗德岛物资配给证书.png')

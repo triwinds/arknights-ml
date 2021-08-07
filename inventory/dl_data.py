@@ -2,32 +2,21 @@ import hashlib
 import json
 import os
 import re
-import shutil
 from functools import lru_cache
 
 import bs4
-import requests
-from retry import retry
+
+from event_util import handle_special_item
+from net_util import request_get
 
 collect_path = 'images/collect/'
-
-
-@retry(tries=10)
-def request_get(url, print_resp=False):
-    print('request_get:', url)
-    resp = requests.get(url, timeout=3)
-    if print_resp:
-        print(resp.content.decode('utf-8'))
-    return resp
 
 
 def update_items():
     global items
     print('update_items')
-    # resp = request_get(
-    #     'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     resp = request_get(
-        'https://raw.fastgit.org/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
+        'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     md5 = hashlib.md5()
     md5.update(resp.content)
     items_map = resp.json()['items']
@@ -47,8 +36,8 @@ def update_items():
 
     if remove_flag:
         print('remove old collect')
-        shutil.rmtree(collect_path)
-        os.mkdir(collect_path)
+        import clear_collect
+        clear_collect.clear_collect_folder(collect_path)
 
     with open('items.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False)
@@ -100,7 +89,7 @@ def download_from_items_page():
     update_flag = False
     for data_dev in data_devs:
         item_name = data_dev['data-name']
-        flag = save_img(item_name, data_dev['data-file'])
+        flag = save_item(item_name, data_dev['data-file'])
         if flag:
             update_flag = True
             print(item_name)
@@ -114,6 +103,7 @@ def download_latest_event_icons():
     resp = request_get('http://prts.wiki/w/%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
     event_tags = soup.find_all(text=' 进行中')
+    event_tags += soup.find_all(text='未开始')
     update_flag = False
     if event_tags:
         for event_tag in event_tags:
@@ -133,21 +123,26 @@ def download_from_event_page(event_url):
     item_set = set()
     update_flag = False
     for item_img in item_imgs:
+        # print(item_img)
         if item_img['alt'] in item_set:
+            continue
+        if item_img.get('data-srcset') is None:
             continue
         item_set.add(item_img['alt'])
         item_name = item_img.parent['title']
         img_url = 'http://prts.wiki' + item_img['data-srcset'].split(', ')[-1][:-3]
-        flag = save_img(item_name, img_url)
+        flag = save_item(item_name, img_url)
         if flag:
             update_flag = True
     return update_flag
 
 
-exp_books = set([str(i) for i in range(2001, 2005)])
+def save_item(item_name, img_url):
+    info = handle_special_item(item_name, img_url)
+    if info:
+        item_id, item_name, img_url = info[0], info[1], info[2]
+        return save_img(item_id, item_name, img_url)
 
-
-def save_img(item_name, img_url):
     items_name_map = get_items_name_map()
     item = items_name_map.get(item_name)
     item_id = 'other'
@@ -156,6 +151,10 @@ def save_img(item_name, img_url):
             item_id = item['itemId']
         if item['itemType'] not in {'ACTIVITY_ITEM', 'VOUCHER_MGACHA'} and not item_id.isdigit():
             item_id = 'other'
+    return save_img(item_id, item_name, img_url)
+
+
+def save_img(item_id, item_name, img_url):
     if img_url == '':
         print(f'skip {item_name}, img_url: {img_url}')
         return False

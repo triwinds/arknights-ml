@@ -1,4 +1,4 @@
-name: train model (monthly)
+name: train model (refresh run)
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8'
+        python-version: '3.9'
         architecture: x64
     - name: Cache pip
       uses: actions/cache@v2
@@ -31,7 +31,7 @@ jobs:
       run: pip install -r requirements.txt
     - name: train inventory model
       run: |
-        cd inventory && rm -rf images/collect/* && python train_torch_from_collect.py
+        cd inventory && python clear_collect.py && python train_torch_from_collect.py
     - name: Upload artifact
       uses: actions/upload-artifact@v2.1.4
       with:
@@ -42,5 +42,5 @@ jobs:
       with:
         author_name: github-actions
         author_email: 41898282+github-actions[bot]@users.noreply.github.com
-        message: 'auto update by git action (monthly)'
+        message: 'auto update by git action (refresh run)'
         add: '.'

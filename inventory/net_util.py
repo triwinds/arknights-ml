@@ -13,16 +13,9 @@ def request_get(url, print_resp=False, timeout=6):
         'Referer': 'http://prts.wiki/w/%E9%A6%96%E9%A1%B5',
         'Accept-Language': 'zh-CN,zh;q=0.9',
     }
-    cookies = {
-        'Hm_lvt_e1369c7d981281aa581e68b669c5a75c': '1628269785',
-        '_ga': 'GA1.2.1413135584.1628269786',
-        '_gid': 'GA1.2.895398950.1628269786',
-        '_gat_gtag_UA_158174062_1': '1',
-        'Hm_lpvt_e1369c7d981281aa581e68b669c5a75c': '1628269798',
-    }
     print('request_get:', url)
     if 'prts.wiki' in url:
-        resp = requests.get(url, timeout=timeout, headers=headers, cookies=cookies)
+        resp = requests.get(url, timeout=timeout, headers=headers)
     else:
         resp = requests.get(url, timeout=timeout)
     if print_resp:

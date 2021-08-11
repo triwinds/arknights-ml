@@ -128,6 +128,8 @@ def download_from_event_page(event_url):
             continue
         if item_img.get('data-srcset') is None:
             continue
+        if 'a' != item_img.parent.name:
+            continue
         item_set.add(item_img['alt'])
         item_name = item_img.parent['title']
         img_url = 'https://prts.shadowfox.workers.dev' + item_img['data-srcset'].split(', ')[-1][:-3]
@@ -181,4 +183,4 @@ def save_img(item_id, item_name, img_url):
 if __name__ == '__main__':
     download_icons()
     # print(download_latest_event_icons())
-    # download_from_event_page('https://prts.shadowfox.workers.dev/w/%E5%AF%86%E6%9E%97%E6%82%8D%E5%B0%86%E5%BD%92%E6%9D%A52021#%E5%A4%A7%E9%85%8B%E9%95%BF%E4%B9%8B%E8%B7%AF')
+    # download_from_event_page('https://prts.shadowfox.workers.dev/w/%E5%A4%9A%E7%B4%A2%E9%9B%B7%E6%96%AF%E5%81%87%E6%97%A5')

@@ -16,7 +16,7 @@ def update_items():
     global items
     print('update_items')
     resp = request_get(
-        'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
+        'https://raw.fastgit.org/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     md5 = hashlib.md5()
     md5.update(resp.content)
     items_map = resp.json()['items']
@@ -140,6 +140,8 @@ def download_from_event_page(event_url):
 
 
 def save_item(item_name, img_url):
+    if img_url.startswith('//'):
+        img_url = 'https:' + img_url
     info = handle_special_item(item_name, img_url)
     if info:
         item_id, item_name, img_url = info[0], info[1], info[2]

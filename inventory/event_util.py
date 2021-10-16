@@ -6,7 +6,7 @@ from net_util import request_get
 @lru_cache(1)
 def get_charm_name_map():
     resp = request_get(
-        'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/charm_table.json')
+        'https://raw.fastgit.org/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/charm_table.json')
     data = resp.json()
     res = {}
     for charm in data['charmList']:

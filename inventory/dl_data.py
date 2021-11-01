@@ -16,7 +16,7 @@ def update_items():
     global items
     print('update_items')
     resp = request_get(
-        'https://raw.fastgit.org/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
+        'https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/item_table.json')
     md5 = hashlib.md5()
     md5.update(resp.content)
     items_map = resp.json()['items']

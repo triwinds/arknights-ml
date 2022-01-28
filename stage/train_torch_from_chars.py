@@ -43,7 +43,7 @@ def resize_char(img):
     img2[0:h, 0:w] = ~img
     # cv2.imshow('test', img2)
     # cv2.waitKey()
-    return img2
+    return ~img2
 
 
 def load_images():
@@ -61,7 +61,7 @@ def load_images():
                 nparr = np.frombuffer(f.read(), np.uint8)
                 image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
                 image = resize_char(image)
-                image = np.expand_dims(image, 0)
+                # image = np.expand_dims(image, 0)
                 l = img_map.get(cdir, [])
                 l.append(image)
                 img_map[cdir] = l
@@ -74,14 +74,37 @@ NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
 
+def add_noise(img, count):
+    img = img.copy()
+    h, w = img.shape
+    for _ in range(count):
+        x = np.random.randint(0, w)
+        y = np.random.randint(0, h)
+        img[y][x] = 255 * np.random.randint(0, 2)
+    # print(img.shape)
+    if np.random.randint(0, 2):
+        scale = 40 / np.random.randint(20, 85)
+        img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
+        img = cv2.resize(img, (16, 16))
+    h, w = img.shape
+    t = np.random.randint(0, 2)
+    l = np.random.randint(0, 2)
+    r = np.random.randint(0, 3)
+    b = np.random.randint(0, 3)
+    img = img[t:h-b, l:w-r]
+    # print(img.shape)
+    return cv2.resize(img, (16, 16))
+
+
 def get_data():
     images = []
     labels = []
     for c in img_map.keys():
-        idxs = np.random.choice(range(len(img_map[c])), 20)
+        idxs = np.random.choice(range(len(img_map[c])), 10)
         for idx in idxs:
             img = img_map[c][idx]
-            image_aug = img
+            image_aug = add_noise(img, 30)
+            image_aug = np.expand_dims(image_aug, 0)
             images.append(image_aug)
             labels.append(id2idx[c])
     images_np = np.stack(images, 0)
@@ -103,32 +126,24 @@ class Net(nn.Module):
             nn.Conv2d(1, 64, 3, stride=1, padding=1),   # 64 * 16 * 16
             nn.BatchNorm2d(64),
             nn.ReLU(True),
-            nn.MaxPool2d(4, 4))                         # 64 * 4 * 4
+            nn.Conv2d(64, 64, 3, stride=2, padding=1),  # 64 * 8 * 8
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.MaxPool2d(4, 4)  # 64 * 1 * 1
+        )
 
         self.fc = nn.Sequential(
-            nn.Linear(64 * 4 * 4, NUM_CLASS))
+            nn.Linear(64 * 2 * 2, NUM_CLASS)
+        )
 
     def forward(self, x):
         x = x / 255.
+        x = x - 0.5
         out = self.conv(x)
-        out = out.reshape(-1, 64 * 4 * 4)
+        out = out.reshape(-1, 64 * 2 * 2)
         out = self.fc(out)
 
         return out
-
-
-# class Net(nn.Module):
-#     def __init__(self):
-#         super(Net, self).__init__()
-#         self.fc = nn.Sequential(
-#             nn.Linear(256, 100),
-#             nn.ReLU(True),
-#             nn.Linear(100, NUM_CLASS))
-#
-#     def forward(self, x):
-#
-#         out = self.fc(x.reshape(-1, 256))
-#         return out
 
 
 loss_func = nn.CrossEntropyLoss()
@@ -138,7 +153,7 @@ loss_func = nn.CrossEntropyLoss()
 
 def compute_loss(x, label):
     loss = loss_func(x, label)
-    prec = (x.argmax(1) == label).float().mean()
+    prec = (x.argmax(1) == label).float().mean().item()
     return loss, prec
 
 
@@ -151,7 +166,8 @@ def train():
     model.train()
     step = 0
     prec = 0
-    target_step = 1500
+    target_step = 3000
+    best = 1
     while step < target_step:
         images_aug_np, label_np = get_data()
         images_aug = torch.from_numpy(images_aug_np).float().to(device)
@@ -162,10 +178,13 @@ def train():
         loss.backward()
         optim.step()
         if step < 10 or step % 10 == 0:
-            print(step, loss.item(), prec.item())
+            print(step, loss.item(), prec)
         step += 1
-    torch.save(model.state_dict(), './model.pth')
-    torch.onnx.export(model, images_aug, 'chars.onnx')
+        if step > target_step - 500 and loss.item() < best:
+            best = loss.item()
+            print(f'save best {best}')
+            torch.save(model.state_dict(), './model.pth')
+            torch.onnx.export(model, images_aug, 'chars.onnx')
 
 
 @lru_cache(maxsize=1)

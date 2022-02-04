@@ -32,6 +32,11 @@ def dump_index_itemid_relation():
     return dump_data['idx2id'], dump_data['id2idx']
 
 
+def show_img(img):
+    cv2.imshow('test', img)
+    cv2.waitKey()
+
+
 def resize_char(img):
     h, w = img.shape[:2]
     scale = 16 / max(h, w)
@@ -43,7 +48,18 @@ def resize_char(img):
     img2[0:h, 0:w] = ~img
     # cv2.imshow('test', img2)
     # cv2.waitKey()
-    return ~img2
+    return img2
+
+
+def add_fake_char(img_map):
+    # char '-'
+    img_l = img_map.get('-')
+    img_b = np.zeros((16, 16)).astype(np.uint8)
+    img_w = 255 * np.ones((8, 16)).astype(np.uint8)
+    img_b[0:8, 0:16] = img_w
+    # cv2.imshow('test', img_b)
+    # cv2.waitKey()
+    img_l.append(img_b)
 
 
 def load_images():
@@ -65,6 +81,7 @@ def load_images():
                 l = img_map.get(cdir, [])
                 l.append(image)
                 img_map[cdir] = l
+    add_fake_char(img_map)
     return img_map
 
 
@@ -74,36 +91,41 @@ NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
 
-def add_noise(img, count):
+def add_noise(img, max_random_h):
     img = img.copy()
     h, w = img.shape
+    count = np.random.randint(5, 10)
     for _ in range(count):
         x = np.random.randint(0, w)
-        y = np.random.randint(0, h)
+        y = np.random.randint(0, max_random_h)
         img[y][x] = 255 * np.random.randint(0, 2)
     # print(img.shape)
     if np.random.randint(0, 2):
-        scale = 40 / np.random.randint(20, 85)
+        scale = 40 / np.random.randint(30, 85)
         img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
         img = cv2.resize(img, (16, 16))
     h, w = img.shape
     t = np.random.randint(0, 2)
     l = np.random.randint(0, 2)
     r = np.random.randint(0, 3)
-    b = np.random.randint(0, 3)
+    b = np.random.randint(0, 2)
     img = img[t:h-b, l:w-r]
     # print(img.shape)
-    return cv2.resize(img, (16, 16))
+    img = cv2.resize(img, (16, 16))
+    return img
 
 
 def get_data():
     images = []
     labels = []
     for c in img_map.keys():
-        idxs = np.random.choice(range(len(img_map[c])), 10)
+        cnt = 20 if c in '-5STR7' else 10
+        max_random_h = 6 if c == '-' else 16
+        idxs = np.random.choice(range(len(img_map[c])), cnt)
         for idx in idxs:
             img = img_map[c][idx]
-            image_aug = add_noise(img, 30)
+            image_aug = add_noise(img, max_random_h)
+            # show_img(image_aug)
             image_aug = np.expand_dims(image_aug, 0)
             images.append(image_aug)
             labels.append(id2idx[c])
@@ -123,24 +145,24 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 64, 3, stride=1, padding=1),   # 64 * 16 * 16
-            nn.BatchNorm2d(64),
+            nn.Conv2d(1, 16, 3, stride=1, padding=1),   # 16 * 16 * 16
+            nn.BatchNorm2d(16),
             nn.ReLU(True),
-            nn.Conv2d(64, 64, 3, stride=2, padding=1),  # 64 * 8 * 8
-            nn.BatchNorm2d(64),
+            nn.Conv2d(16, 32, 3, stride=2, padding=1),  # 32 * 8 * 8
+            nn.BatchNorm2d(32),
             nn.ReLU(True),
-            nn.MaxPool2d(4, 4)  # 64 * 1 * 1
+            nn.MaxPool2d(4, 4)  # 32 * 2 * 2
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(64 * 2 * 2, NUM_CLASS)
+            nn.Linear(32 * 2 * 2, NUM_CLASS)
         )
 
     def forward(self, x):
         x = x / 255.
         x = x - 0.5
         out = self.conv(x)
-        out = out.reshape(-1, 64 * 2 * 2)
+        out = out.reshape(-1, 32 * 2 * 2)
         out = self.fc(out)
 
         return out
@@ -168,7 +190,8 @@ def train():
     prec = 0
     target_step = 3000
     best = 1
-    while step < target_step:
+    saved = False
+    while step < target_step or not saved:
         images_aug_np, label_np = get_data()
         images_aug = torch.from_numpy(images_aug_np).float().to(device)
         label = torch.from_numpy(label_np).long().to(device)
@@ -180,7 +203,8 @@ def train():
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec)
         step += 1
-        if step > target_step - 500 and loss.item() < best:
+        if step > target_step - 500 and loss.item() < best and prec == 1:
+            saved = True
             best = loss.item()
             print(f'save best {best}')
             torch.save(model.state_dict(), './model.pth')
@@ -278,7 +302,6 @@ def optimize_onnx():
     optimized_model = onnxoptimizer.optimize(onnx_model, passes)
 
     onnx.save(optimized_model, './ark_material2.onnx')
-
 
 
 if __name__ == '__main__':

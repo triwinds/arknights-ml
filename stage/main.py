@@ -20,10 +20,6 @@ def screenshot():
     global screenshot_rgb_cache
     st = time.time()
     content = subprocess.check_output('adb exec-out "screencap -p"', shell=True)
-    if os.name == 'nt':
-        content = content.replace(b'\r\n', b'\n')
-    # with open('images/screen.png', 'wb') as f:
-    #     f.write(content)
     img_array = np.asarray(bytearray(content), dtype=np.uint8)
     screenshot_cache = cv2.imdecode(img_array, 0)
     screenshot_rgb_cache = cv2.imdecode(img_array, 1)
@@ -264,8 +260,8 @@ if __name__ == '__main__':
     #     if s == 'n':
     #         break
 
-    screenshot()
-    save_screenshot()
+    # screenshot()
+    # save_screenshot()
 
     # img = cv2.imread('images/battle_start.png', 1)
     # img = resize_cv_img(img, 2/3, cv2.INTER_AREA)
@@ -273,7 +269,7 @@ if __name__ == '__main__':
 
     # save_screenshot()
 
-    # get_train_resource(True)
+    get_train_resource(True)
 
     # move_to_char2()
     # print(os.listdir('images/chars2'))

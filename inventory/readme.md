@@ -11,11 +11,18 @@
 
 ### 使用 collect 中的素材进行训练
 
-运行 `train_torch_from_collect.py` 中的 `train()` 即可, 生成模型为 `model.bin` 与 `ark_material.onnx`
+运行 `train_torch_from_collect.py` 中的 `train()` 即可, 生成模型为 `model.pth` 与 `ark_material.onnx`
 
 ## 使用
 
-直接执行 `test()` 即可.
+依赖安装:
 
-> 需要 720p 分辨率的截图
+```bash
+# 物品识别可以直接使用 opencv 内置的 dnn 模块
+# 数量识别需要 PaddleOCR 或其它具有 std 功能的 ocr 引擎
+pip install opencv-python, numpy, ppocr-onnx
+```
 
+需配合 `ark_material.onnx` 及 `index_itemid_relation.json` 使用.
+
+具体使用方式见 [demo.py](./demo.py)

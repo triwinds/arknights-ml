@@ -32,6 +32,8 @@ def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM
 
 
 if __name__ == '__main__':
+    if not os.path.exists('images/chars2'):
+        os.mkdir('images/chars2')
     gen_data('Novecento WideBold.otf', 'gen_nw')
     gen_data('Mada-Medium.otf', 'gen_mm')
     gen_data('Bender.otf', 'gen_b', '0123456789')

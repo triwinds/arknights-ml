@@ -5,12 +5,11 @@ import cv_svm_ocr
 import os
 
 
-def gen_data(font_path, img_prefix):
+def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM'):
     # img = np.ones((60, 60, 3), np.uint8)
     b, g, r, a = 0, 0, 0, 0
 
     font = ImageFont.truetype(font_path, 45)
-    chars = '-0123456789QWERTYUIOPASDFGHJKLZXCVBNM'
     for c in chars:
         img = np.zeros((60, 60, 3), np.uint8)
         img += 255
@@ -35,3 +34,4 @@ def gen_data(font_path, img_prefix):
 if __name__ == '__main__':
     gen_data('Novecento WideBold.otf', 'gen_nw')
     gen_data('Mada-Medium.otf', 'gen_mm')
+    gen_data('Bender.otf', 'gen_b', '0123456789')

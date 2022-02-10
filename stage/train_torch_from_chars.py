@@ -1,6 +1,9 @@
 import json
 import os
 import subprocess
+import shutil
+import time
+
 import cv_svm_ocr
 from io import BytesIO
 
@@ -105,9 +108,9 @@ def add_noise(img, max_random_h):
         img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
         img = cv2.resize(img, (16, 16))
     h, w = img.shape
-    t = np.random.randint(0, 2)
+    t = 0
     l = np.random.randint(0, 2)
-    r = np.random.randint(0, 3)
+    r = np.random.randint(0, 2)
     b = np.random.randint(0, 2)
     img = img[t:h-b, l:w-r]
     # print(img.shape)
@@ -119,7 +122,7 @@ def get_data():
     images = []
     labels = []
     for c in img_map.keys():
-        cnt = 20 if c in '-5STR7' else 10
+        cnt = 30 if c in '-5TR' else 10
         max_random_h = 6 if c == '-' else 16
         idxs = np.random.choice(range(len(img_map[c])), cnt)
         for idx in idxs:
@@ -209,6 +212,7 @@ def train():
             print(f'save best {best}')
             torch.save(model.state_dict(), './model.pth')
             torch.onnx.export(model, images_aug, 'chars.onnx')
+            # shutil.copyfile('chars.onnx', f'tmp/chars-{int(time.time())}.onnx')
 
 
 @lru_cache(maxsize=1)
@@ -290,18 +294,6 @@ def softmax(x):
     """Compute softmax values for each sets of scores in x."""
     e_x = np.exp(x - np.max(x))
     return e_x / e_x.sum(axis=0)
-
-
-def optimize_onnx():
-    import onnx
-    import onnxoptimizer
-
-    onnx_model = onnx.load('./ark_material.onnx')
-    passes = ["extract_constant_to_initializer", "eliminate_unused_initializer"]
-
-    optimized_model = onnxoptimizer.optimize(onnx_model, passes)
-
-    onnx.save(optimized_model, './ark_material2.onnx')
 
 
 if __name__ == '__main__':

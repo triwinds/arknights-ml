@@ -123,7 +123,7 @@ def load_images():
                 img_map[filepath] = torch.from_numpy(np.transpose(image, (2, 0, 1)))\
                     .float().to(device)
     weights_t = torch.as_tensor(weights)
-    weights_t[weights_t > 50] = 50
+    weights_t[weights_t > 80] = 80
     weights_t = 1 / weights_t
     return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
 
@@ -133,7 +133,7 @@ NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
 
-def crop_item_middle_img(cv_item_img, ox, oy, radius):
+def crop_item_middle_img(cv_item_img, ox, oy):
     # ratio = radius / 60
     ratio = 1
     y1 = int(oy - (40 * ratio))
@@ -288,11 +288,23 @@ def predict(model, roi_list):
 def test():
     model = load_model()
     # screen = Image.open('images/screen.png')
-    screen = inventory.screenshot()
-    items = inventory.get_all_item_img_in_screen(screen)
+    collect_list = os.listdir('images/collect')
+    collect_list.sort()
+    items = []
+    for cdir in collect_list:
+        dirpath = 'images/collect/' + cdir
+        sub_dir_files = os.listdir(dirpath)
+        filename = sub_dir_files[0]
+        filepath = os.path.join(dirpath, filename)
+        with open(filepath, 'rb') as f:
+            nparr = np.frombuffer(f.read(), np.uint8)
+            # convert to image array
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            image = crop_item_middle_img(cv2.resize(image, (140, 140)), 70, 70)
+            items.append(image)
     roi_list = []
     for x in items:
-        roi = x['rectangle2']
+        roi = x
         # roi = roi / 255
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)
@@ -300,12 +312,11 @@ def test():
     print(res)
     for i in range(len(res[0])):
         item_id = res[0][i][0]
-        idx = res[0][i][1]
-        if item_id == 'other':
-            print(res[1][i], 'other')
-        else:
-            print(res[1][i], item_id, inventory.item_map.get(item_id), idx2name[idx])
-        inventory.show_img(items[i]['rectangle'])
+        expect_id = collect_list[i]
+        print(f"{item_id}/{expect_id}, {res[1][i]:.3f}")
+        if item_id != expect_id and expect_id not in {'randomMaterial_1', 'randomMaterial_5'}:
+            # inventory.show_img(items[i])
+            raise RuntimeError(f'Wrong predict: {item_id}/{expect_id}, {res[1][i]}')
 
 
 def screenshot():
@@ -403,7 +414,7 @@ def export_onnx():
 
 if __name__ == '__main__':
     train()
-    # test()
+    test()
     # prepare_train_resource()
     # prepare_train_resource2()
     # export_onnx()

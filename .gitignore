@@ -145,3 +145,4 @@ inventory/images/screen*
 
 !demo*.png
 !stage_*.png
+!stage/images/test

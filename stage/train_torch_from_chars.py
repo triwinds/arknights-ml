@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 from PIL import Image
 from functools import lru_cache
+import demo
 
 resources_path = 'images/chars2/'
 
@@ -123,6 +124,7 @@ def get_data():
     labels = []
     for c in img_map.keys():
         cnt = 30 if c in '-5TR' else 10
+        cnt = 5 if c in '1' else cnt
         max_random_h = 6 if c == '-' else 16
         idxs = np.random.choice(range(len(img_map[c])), cnt)
         for idx in idxs:
@@ -154,7 +156,7 @@ class Net(nn.Module):
             nn.Conv2d(16, 32, 3, stride=2, padding=1),  # 32 * 8 * 8
             nn.BatchNorm2d(32),
             nn.ReLU(True),
-            nn.MaxPool2d(4, 4)  # 32 * 2 * 2
+            nn.AvgPool2d(4, 4)  # 32 * 2 * 2
         )
 
         self.fc = nn.Sequential(
@@ -191,7 +193,7 @@ def train():
     model.train()
     step = 0
     prec = 0
-    target_step = 3000
+    target_step = 1500
     best = 1
     saved = False
     while step < target_step or not saved:
@@ -208,11 +210,12 @@ def train():
         step += 1
         if step > target_step - 500 and loss.item() < best and prec == 1:
             saved = True
-            best = loss.item()
-            print(f'save best {best}')
-            torch.save(model.state_dict(), './model.pth')
+            # torch.save(model.state_dict(), './model.pth')
             torch.onnx.export(model, images_aug, 'chars.onnx')
-            # shutil.copyfile('chars.onnx', f'tmp/chars-{int(time.time())}.onnx')
+            if test():
+                best = loss.item()
+                print(f'save best {best}')
+                shutil.copyfile('chars.onnx', f'tmp/chars-{int(time.time())}.onnx')
 
 
 @lru_cache(maxsize=1)
@@ -248,17 +251,15 @@ def load_onnx_model():
     return cv2.dnn.readNetFromONNX('chars.onnx')
 
 
-def predict_cv(img):
-    net = load_onnx_model()
-    char_imgs = cv_svm_ocr.crop_char_img(img)
+def predict_cv(img, net, noise_size=None):
+    char_imgs = demo.crop_char_img(img, noise_size)
     if not char_imgs:
         return ''
-    roi_list = [np.expand_dims(resize_char(x), 2) for x in char_imgs]
+    roi_list = [np.expand_dims(demo.resize_char(x), 2) for x in char_imgs]
     blob = cv2.dnn.blobFromImages(roi_list)
     net.setInput(blob)
-    score = net.forward()
-    # probs = softmax(score)
-    predicts = score.argmax(1)
+    scores = net.forward()
+    predicts = scores.argmax(1)
     return ''.join([idx2id[p] for p in predicts])
 
 
@@ -296,10 +297,26 @@ def softmax(x):
     return e_x / e_x.sum(axis=0)
 
 
+def test(print_all=False):
+    net = load_onnx_model()
+    img_paths = os.listdir('images/test')
+    for img_name in img_paths:
+        real_tag_str = img_name[:-4]
+        noise_size = None if real_tag_str not in {'120', '160', '470', '715', '820', 'EPISODE05'} else 1
+        tag = cv2.imread(f'images/test/{img_name}', cv2.IMREAD_GRAYSCALE)
+        tag_str = predict_cv(tag, net, noise_size)
+        if print_all:
+            print(real_tag_str, tag_str)
+        if real_tag_str != tag_str:
+            print(f'Wrong: %s/%s' % (real_tag_str, tag_str))
+            return False
+    return True
+
+
 if __name__ == '__main__':
     # print(img_map.keys())
-    train()
-    # test()
+    # train()
+    test(True)
     # prepare_train_resource()
     # export_onnx()
     # test_cv_onnx()

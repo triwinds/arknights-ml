@@ -162,6 +162,9 @@ def save_img(item_id, item_name, img_url):
     if img_url == '':
         print(f'skip {item_name}, img_url: {img_url}')
         return False
+    if '家具收藏包' in item_name:
+        print(f'skip 家具收藏包 [{item_name}], img_url: {img_url}')
+        return False
     if not os.path.exists(collect_path + item_id):
         os.mkdir(collect_path + item_id)
     filepath = collect_path + item_id + '/%s.png' % item_name

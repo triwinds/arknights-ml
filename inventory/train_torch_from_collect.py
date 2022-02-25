@@ -33,7 +33,7 @@ def update_resources(exit_if_not_update=False):
 update_resources(True)
 
 
-def dump_index_itemid_relation():
+def dump_index_itemid_relation(exclude_collect):
     from dl_data import get_items_id_map
     items_id_map = get_items_id_map()
     dump_data = {
@@ -47,6 +47,8 @@ def dump_index_itemid_relation():
     collect_list.sort()
     index = 0
     for dirpath in collect_list:
+        if dirpath in exclude_collect:
+            continue
         item_id = dirpath
         dump_data['idx2id'].append(item_id)
         dump_data['idx2name'].append(get_item_name(item_id, items_id_map))
@@ -101,34 +103,43 @@ def load_images():
     collect_list = os.listdir('images/collect')
     collect_list.sort()
     weights = []
+    empty_collect = []
     for cdir in collect_list:
         dirpath = 'images/collect/' + cdir
         sub_dir_files = os.listdir(dirpath)
-        weights.append(len(sub_dir_files))
+        weight = 0
         for filename in sub_dir_files:
             filepath = os.path.join(dirpath, filename)
             with open(filepath, 'rb') as f:
                 nparr = np.frombuffer(f.read(), np.uint8)
                 # convert to image array
-                image = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+                image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 image = cv2.resize(image, (140, 140))
-                if image.shape[-1] == 4:
-                    image = image[..., :-1]
                 gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                gray_img_map[filepath] = gray_img
-                img_files.append(filepath)
-                item_id_map[filepath] = cdir
                 circles = inventory.get_circles(gray_img, 50, 100)
+                if circles is None:
+                    print(f'No circle found in {filepath}, skip.')
+                    continue
                 circle_map[filepath] = circles[0]
                 img_map[filepath] = torch.from_numpy(np.transpose(image, (2, 0, 1)))\
                     .float().to(device)
+                gray_img_map[filepath] = gray_img
+                img_files.append(filepath)
+                item_id_map[filepath] = cdir
+                weight += 1
+        if weight == 0:
+            print(f'empty_collect {cdir}')
+            empty_collect.append(cdir)
+            continue
+        weights.append(weight)
     weights_t = torch.as_tensor(weights)
     weights_t[weights_t > 80] = 80
     weights_t = 1 / weights_t
-    return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t
+    return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t, empty_collect
 
 
-idx2id, id2idx, idx2name = dump_index_itemid_relation()
+img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t, empty_collect = load_images()
+idx2id, id2idx, idx2name = dump_index_itemid_relation(empty_collect)
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -226,7 +237,6 @@ class Cnn(nn.Module):
 
 
 def train():
-    img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t = load_images()
     criterion = FocalLoss(NUM_CLASS, alpha=weights_t)
     criterion.to(device)
 

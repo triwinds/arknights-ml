@@ -53,7 +53,8 @@ def get_all_item_img_in_screen(pil_screen, box_ratio=2.4):
 def get_circles(gray_img, min_radius=55, max_radius=65):
     circles = cv2.HoughCircles(gray_img, cv2.HOUGH_GRADIENT, 1, 100, param1=50,
                                param2=30, minRadius=min_radius, maxRadius=max_radius)
-    return circles[0]
+    if circles is not None:
+        return circles[0]
 
 
 def crop_item_middle_img(cv_item_img, radius):

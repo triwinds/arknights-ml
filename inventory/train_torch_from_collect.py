@@ -253,7 +253,9 @@ def train():
     prec = 0
     target_step = 1500
     last_time = time.monotonic()
-    while step < target_step or prec < 1 or step > 2*target_step:
+    is_saved = False
+    best = 999
+    while step < target_step or not is_saved:
         images_t, labels_t = get_data(img_files, item_id_map, circle_map, img_map)
         optim.zero_grad()
         score = model(images_t)
@@ -264,8 +266,19 @@ def train():
             print(step, loss.item(), prec.item(), time.monotonic() - last_time)
             last_time = time.monotonic()
         step += 1
-    torch.save(model.state_dict(), './model.pth')
-    torch.onnx.export(model, torch.rand((1, 3, 60, 60)).to(device), 'ark_material.onnx')
+        if step > target_step - 300 and best > loss.item():
+            model.eval()
+            if test(model):
+                best = loss.item()
+                print(f'save best {best}')
+                model.train()
+                torch.save(model.state_dict(), './model.pth')
+                torch.onnx.export(model, torch.rand((1, 3, 60, 60)).to(device), 'ark_material.onnx')
+                is_saved = True
+            else:
+                model.train()
+
+
     from dl_data import request_get
     request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/index_itemid_relation.json', True)
     request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/ark_material.onnx', True)
@@ -284,7 +297,7 @@ def predict(model, roi_list):
     Image size of 720p is recommended.
     """
     roi_np = np.stack(roi_list, 0)
-    roi_t = torch.from_numpy(roi_np).float()
+    roi_t = torch.from_numpy(roi_np).float().to(device)
     with torch.no_grad():
         score = model(roi_t)
         probs = nn.Softmax(1)(score)
@@ -295,8 +308,8 @@ def predict(model, roi_list):
     return [(idx2id[idx], idx) for idx in predicts], [probs[i, predicts[i]] for i in range(len(roi_list))]
 
 
-def test():
-    model = load_model()
+def test(model):
+    # model = load_model()
     # screen = Image.open('images/screen.png')
     collect_list = os.listdir('images/collect')
     collect_list.sort()
@@ -323,10 +336,12 @@ def test():
     for i in range(len(res[0])):
         item_id = res[0][i][0]
         expect_id = collect_list[i]
-        print(f"{item_id}/{expect_id}, {res[1][i]:.3f}")
+        # print(f"{item_id}/{expect_id}, {res[1][i]:.3f}")
         if item_id != expect_id and expect_id not in {'randomMaterial_1', 'randomMaterial_5'}:
             # inventory.show_img(items[i])
-            raise RuntimeError(f'Wrong predict: {item_id}/{expect_id}, {res[1][i]}')
+            print(f'Wrong predict: {item_id}/{expect_id}, {res[1][i]}')
+            return False
+    return True
 
 
 def screenshot():
@@ -424,7 +439,6 @@ def export_onnx():
 
 if __name__ == '__main__':
     train()
-    test()
     # prepare_train_resource()
     # prepare_train_resource2()
     # export_onnx()

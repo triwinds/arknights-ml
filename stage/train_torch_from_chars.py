@@ -16,6 +16,7 @@ from functools import lru_cache
 import demo
 
 resources_path = 'images/chars2/'
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def dump_index_itemid_relation():
@@ -41,15 +42,16 @@ def show_img(img):
     cv2.waitKey()
 
 
-def resize_char(img):
+def resize_char_with_gap(img):
     h, w = img.shape[:2]
-    scale = 16 / max(h, w)
+    scale = 14 / max(h, w)
     h = int(h * scale)
     w = int(w * scale)
     img2 = np.zeros((16, 16)).astype(np.uint8)
     img = cv2.resize(img, (w, h))
+    # print(img.shape)
 
-    img2[0:h, 0:w] = ~img
+    img2[1:h + 1, 1:w + 1] = ~img
     # cv2.imshow('test', img2)
     # cv2.waitKey()
     return img2
@@ -80,7 +82,7 @@ def load_images():
             with open(filepath, 'rb') as f:
                 nparr = np.frombuffer(f.read(), np.uint8)
                 image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                image = resize_char(image)
+                image = resize_char_with_gap(image)
                 # image = np.expand_dims(image, 0)
                 l = img_map.get(cdir, [])
                 l.append(image)
@@ -98,7 +100,7 @@ print('NUM_CLASS', NUM_CLASS)
 def add_noise(img, max_random_h):
     img = img.copy()
     h, w = img.shape
-    count = np.random.randint(5, 10)
+    count = np.random.randint(0, 5)
     for _ in range(count):
         x = np.random.randint(0, w)
         y = np.random.randint(0, max_random_h)
@@ -113,7 +115,7 @@ def add_noise(img, max_random_h):
     l = np.random.randint(0, 2)
     r = np.random.randint(0, 2)
     b = np.random.randint(0, 2)
-    img = img[t:h-b, l:w-r]
+    img = img[t:h - b, l:w - r]
     # print(img.shape)
     img = cv2.resize(img, (16, 16))
     return img
@@ -124,7 +126,7 @@ def get_data():
     labels = []
     for c in img_map.keys():
         cnt = 30 if c in '-5TR' else 10
-        cnt = 5 if c in '1' else cnt
+        # cnt = 5 if c in '1' else cnt
         max_random_h = 6 if c == '-' else 16
         idxs = np.random.choice(range(len(img_map[c])), cnt)
         for idx in idxs:
@@ -150,7 +152,7 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 16, 3, stride=1, padding=1),   # 16 * 16 * 16
+            nn.Conv2d(1, 16, 3, stride=1, padding=1),  # 16 * 16 * 16
             nn.BatchNorm2d(16),
             nn.ReLU(True),
             nn.Conv2d(16, 32, 3, stride=2, padding=1),  # 32 * 8 * 8
@@ -185,7 +187,6 @@ def compute_loss(x, label):
 
 
 def train():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('train on:', device)
     model = Net().to(device)
     loss_func.to(device)
@@ -194,7 +195,7 @@ def train():
     step = 0
     prec = 0
     target_step = 1500
-    best = 1
+    best = 10
     saved = False
     while step < target_step or not saved:
         images_aug_np, label_np = get_data()
@@ -208,14 +209,15 @@ def train():
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec)
         step += 1
-        if step > target_step - 500 and loss.item() < best and prec == 1:
-            saved = True
-            # torch.save(model.state_dict(), './model.pth')
-            torch.onnx.export(model, images_aug, 'chars.onnx')
-            if test():
+        if step > target_step - 500 and loss.item() < best:
+            model.eval()
+            if test(model):
+                saved = True
                 best = loss.item()
                 print(f'save best {best}')
-                shutil.copyfile('chars.onnx', f'tmp/chars-{int(time.time())}.onnx')
+                torch.onnx.export(model, images_aug, 'chars.onnx')
+                # shutil.copyfile('chars.onnx', f'tmp/chars-{int(time.time())}.onnx')
+            model.train()
 
 
 @lru_cache(maxsize=1)
@@ -227,20 +229,19 @@ def load_model():
     return model
 
 
-def predict(img):
-    model = load_model()
-    char_imgs = cv_svm_ocr.crop_char_img(img)
+def predict(img, model, noise_size=None):
+    char_imgs = demo.crop_char_img(img, noise_size)
     if not char_imgs:
         return ''
-    roi_list = [np.expand_dims(resize_char(x), 0) for x in char_imgs]
+    roi_list = [np.expand_dims(demo.resize_char(x), 0) for x in char_imgs]
     roi_np = np.stack(roi_list, 0)
-    roi_t = torch.from_numpy(roi_np).float()
+    roi_t = torch.from_numpy(roi_np).float().to(device)
     with torch.no_grad():
         score = model(roi_t)
-        probs = nn.Softmax(1)(score)
+        # probs = nn.Softmax(1)(score)
         predicts = score.argmax(1)
 
-    probs = probs.cpu().data.numpy()
+    # probs = probs.cpu().data.numpy()
     predicts = predicts.cpu().data.numpy()
     # print([idx2id[p] for p in predicts], [probs[i, predicts[i]] for i in range(len(roi_list))])
     return ''.join([idx2id[p] for p in predicts])
@@ -297,14 +298,24 @@ def softmax(x):
     return e_x / e_x.sum(axis=0)
 
 
-def test(print_all=False):
-    net = load_onnx_model()
-    img_paths = os.listdir('images/test')
+@lru_cache(10000)
+def load_test_img(path):
+    return cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+
+
+@lru_cache(1)
+def ls_test():
+    return os.listdir('images/test')
+
+
+def test(model, print_all=False):
+    img_paths = ls_test()
     for img_name in img_paths:
         real_tag_str = img_name[:-4]
-        noise_size = None if real_tag_str not in {'120', '160', '470', '715', '820', 'EPISODE05'} else 1
-        tag = cv2.imread(f'images/test/{img_name}', cv2.IMREAD_GRAYSCALE)
-        tag_str = predict_cv(tag, net, noise_size)
+        noise_size = None if real_tag_str not in {'120', '160', '470', '715', '820'} \
+                             and 'EPISODE' not in real_tag_str else 1
+        tag = load_test_img(f'images/test/{img_name}')
+        tag_str = predict(tag, model, noise_size)
         if print_all:
             print(real_tag_str, tag_str)
         if real_tag_str != tag_str:
@@ -315,8 +326,7 @@ def test(print_all=False):
 
 if __name__ == '__main__':
     # print(img_map.keys())
-    # train()
-    test(True)
+    train()
     # prepare_train_resource()
     # export_onnx()
     # test_cv_onnx()

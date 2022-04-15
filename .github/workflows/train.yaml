@@ -3,7 +3,7 @@ name: train model
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 */8 * * *'
+    - cron: '30 1 * * *'
 
 jobs:
   build:

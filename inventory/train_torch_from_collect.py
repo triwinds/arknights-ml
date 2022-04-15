@@ -176,11 +176,7 @@ def get_noise_data():
 max_resize_ratio = 100
 
 
-# @lru_cache(maxsize=10000)
-# def get_resized_img(img_map, filepath, ratio):
-#     img_t = img_map[filepath]
-#     ratio = 1 + 0.2 * (ratio / max_resize_ratio)
-#     return F.interpolate(img_t, scale_factor=ratio, mode='bilinear')
+IGNORE_ITEM_ID = {'randomMaterial_1', 'randomMaterial_5'}
 
 
 def get_data(img_files, item_id_map, circle_map, img_map):
@@ -188,7 +184,8 @@ def get_data(img_files, item_id_map, circle_map, img_map):
     labels = []
     for filepath in img_files:
         item_id = item_id_map[filepath]
-
+        if item_id in IGNORE_ITEM_ID:
+            continue
         c = circle_map[filepath]
         t = 4 if item_id != 'other' else 1
         for _ in range(t):
@@ -251,7 +248,7 @@ def train():
     model.train()
     step = 0
     prec = 0
-    target_step = 1500
+    target_step = 1200
     last_time = time.monotonic()
     is_saved = False
     best = 999

@@ -24,3 +24,5 @@ def handle_special_item(item_name, img_url):
     charm_name_map = get_charm_name_map()
     if item_name in charm_name_map:
         return get_charm_info(charm_name_map.get(item_name), img_url)
+    if '罗德岛物资补给' in item_name:
+        return 'randomMaterial_6', '罗德岛物资补给III', img_url

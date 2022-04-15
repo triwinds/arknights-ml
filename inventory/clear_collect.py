@@ -7,6 +7,9 @@ retain_folders = {'4001'}
 
 def clear_collect_folder(collect_path, retain_manual_files=True):
     for path in os.listdir(collect_path):
+        if path.isdigit():
+            print(f'{path} is a base item, skip.')
+            continue
         if path in retain_folders:
             print(f'{path} is in retain_folders, skip.')
             continue

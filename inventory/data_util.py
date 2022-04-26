@@ -14,7 +14,6 @@ def get_ignore_item_ids():
     for icon_id, item_ids in icon_map.items():
         # 罗德岛物资补给
         if len(item_ids) > 1 and icon_id.startswith('randomMaterial'):
-            item_ids.sort()
             ignore_item_ids.extend(item_ids[:-1])
     return set(ignore_item_ids)
 

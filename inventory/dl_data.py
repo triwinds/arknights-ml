@@ -151,9 +151,9 @@ def save_item(item_name, img_url):
     item = items_name_map.get(item_name)
     item_id = 'other'
     if item:
-        if item['itemType'] in {'MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM', 'VOUCHER_MGACHA'} or item['itemId'].isdigit():
+        if item['itemType'] in {'MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM', 'VOUCHER_MGACHA', 'AP_SUPPLY'} or item['itemId'].isdigit():
             item_id = item['itemId']
-        if item['itemType'] not in {'ACTIVITY_ITEM', 'VOUCHER_MGACHA'} and not item_id.isdigit():
+        if item['itemType'] not in {'ACTIVITY_ITEM', 'VOUCHER_MGACHA', 'AP_SUPPLY'} and not item_id.isdigit():
             item_id = 'other'
     return save_img(item_id, item_name, img_url)
 

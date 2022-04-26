@@ -14,6 +14,7 @@ from PIL import Image
 
 import inventory
 from focal_loss import FocalLoss
+from data_util import get_ignore_item_ids
 
 collect_path = 'images/collect/'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -176,7 +177,8 @@ def get_noise_data():
 max_resize_ratio = 100
 
 
-IGNORE_ITEM_ID = {'randomMaterial_1', 'randomMaterial_5'}
+IGNORE_ITEM_ID = get_ignore_item_ids()
+print('IGNORE_ITEM_ID', IGNORE_ITEM_ID)
 
 
 def get_data(img_files, item_id_map, circle_map, img_map):
@@ -329,7 +331,7 @@ def test(model):
         roi = np.transpose(roi, (2, 0, 1))
         roi_list.append(roi)
     res = predict(model, roi_list)
-    print(res)
+    # print(res)
     for i in range(len(res[0])):
         item_id = res[0][i][0]
         expect_id = collect_list[i]

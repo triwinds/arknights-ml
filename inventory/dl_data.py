@@ -82,14 +82,17 @@ def download_from_items_page():
     print('checking item page...')
     resp = request_get('https://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
     soup = bs4.BeautifulSoup(resp.text, features='html.parser')
-    data_devs = soup.find_all("div", {"class": "smwdata"})
+    data_divs = soup.find_all("div", {"class": "smwdata"})
     # print(data_devs[0])
-    total = len(data_devs)
+    total = len(data_divs)
     c = 0
     update_flag = False
-    for data_dev in data_devs:
-        item_name = data_dev['data-name']
-        flag = save_item(item_name, data_dev['data-file'])
+    for data_div in data_divs:
+        if '分类:其他道具' in data_div['data-category']:
+            print('skip', data_div['data-name'])
+            continue
+        item_name = data_div['data-name']
+        flag = save_item(item_name, data_div['data-file'])
         if flag:
             update_flag = True
             print(item_name)

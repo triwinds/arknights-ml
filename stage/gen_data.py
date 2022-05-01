@@ -5,6 +5,9 @@ import cv_svm_ocr
 import os
 
 
+target_dir = 'images/chars_end'
+
+
 def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM'):
     # img = np.ones((60, 60, 3), np.uint8)
     b, g, r, a = 0, 0, 0, 0
@@ -25,15 +28,15 @@ def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM
         print(c, len(char_imgs))
         assert len(char_imgs) == 1
         char_img = char_imgs[0]
-        char_dir = 'images/chars2/%s' % c
+        char_dir = f'{target_dir}/{c}'
         if not os.path.exists(char_dir):
             os.mkdir(char_dir)
         cv2.imwrite(char_dir + f'/{img_prefix}_%s.png' % c, char_img)
 
 
 if __name__ == '__main__':
-    if not os.path.exists('images/chars2'):
-        os.mkdir('images/chars2')
-    gen_data('Novecento WideBold.otf', 'gen_nw')
-    gen_data('Mada-Medium.otf', 'gen_mm')
-    gen_data('Bender.otf', 'gen_b', '0123456789')
+    if not os.path.exists(target_dir):
+        os.mkdir(target_dir)
+    # gen_data('Novecento WideBold.otf', 'gen_nw')
+    gen_data('Novecento WideMedium.otf', 'gen_nwm')
+    # gen_data('Bender.otf', 'gen_b', '0123456789')

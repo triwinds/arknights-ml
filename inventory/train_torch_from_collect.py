@@ -281,6 +281,8 @@ def train():
     from dl_data import request_get
     request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/index_itemid_relation.json', True)
     request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/ark_material.onnx', True)
+    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@main/inventory/index_itemid_relation.json', True)
+    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@main/inventory/ark_material.onnx', True)
 
 
 def load_model():

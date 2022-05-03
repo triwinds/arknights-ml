@@ -35,8 +35,9 @@ jobs:
     - name: train inventory model
       uses: nick-fields/retry@v2
       with:
-        timeout_seconds: 18000
-        max_attempts: 1
+        timeout_minutes: 60
+        retry_wait_seconds: 3600
+        max_attempts: 2
         command: cd inventory && python train_torch_from_collect.py
         new_command_on_retry: git add . && git reset HEAD --hard && python train_torch_from_collect.py
     - name: Commit changes

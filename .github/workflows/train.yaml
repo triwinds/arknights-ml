@@ -29,14 +29,16 @@ jobs:
           ${{ runner.os }}-
     - name: Install dependencies
       run: pip install -r requirements.txt
+#    - name: train inventory model
+#      run: |
+#        cd inventory && python train_torch_from_collect.py
     - name: train inventory model
-      run: |
-        cd inventory && python train_torch_from_collect.py
-#    - name: Upload artifact
-#      uses: actions/upload-artifact@v2.1.4
-#      with:
-#        name: ark_material.onnx
-#        path: inventory/ark_material.onnx
+      uses: nick-fields/retry@v2
+      with:
+        timeout_seconds: 18000
+        max_attempts: 1
+        command: cd inventory && python train_torch_from_collect.py
+        new_command_on_retry: git add . && git reset HEAD --hard && python train_torch_from_collect.py
     - name: Commit changes
       uses: EndBug/add-and-commit@v7
       with:

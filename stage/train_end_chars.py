@@ -107,7 +107,7 @@ def add_noise(img, max_random_h):
         img[y][x] = 255 * np.random.randint(0, 2)
     # print(img.shape)
     if np.random.randint(0, 2):
-        scale = 40 / np.random.randint(30, 85)
+        scale = 40 / np.random.randint(35, 45)
         img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
         img = cv2.resize(img, (16, 16))
     h, w = img.shape

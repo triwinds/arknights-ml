@@ -276,6 +276,8 @@ def train():
                 is_saved = True
             else:
                 model.train()
+        if step > target_step * 2:
+            raise Exception('train too long')
 
 
     from dl_data import request_get

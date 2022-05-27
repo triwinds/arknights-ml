@@ -142,6 +142,7 @@ stage/images
 #inventory/images/collect
 inventory/images/tmp
 inventory/images/screen*
+inventory/model.pth
 
 !demo*.png
 !stage_*.png

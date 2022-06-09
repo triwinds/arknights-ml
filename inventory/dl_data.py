@@ -1,10 +1,9 @@
 import hashlib
 import json
 import os
-import re
 from functools import lru_cache
 
-import bs4
+from github import Github
 
 from event_util import handle_special_item
 from net_util import request_get
@@ -71,75 +70,36 @@ def get_items_name_map():
     return res
 
 
+def get_icon_id_map():
+    res = {}
+    for item in items:
+        tmp_list = res.get(item['iconId'], [])
+        tmp_list.append(item)
+        res[item['iconId']] = tmp_list
+    return res
+
+
 def download_icons():
     update_items()
-    flag1 = download_from_items_page()
-    flag2 = download_latest_event_icons()
-    return flag1 or flag2
-
-
-def download_from_items_page():
-    print('checking item page...')
-    resp = request_get('https://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88')
-    soup = bs4.BeautifulSoup(resp.text, features='html.parser')
-    data_divs = soup.find_all("div", {"class": "smwdata"})
-    # print(data_devs[0])
-    total = len(data_divs)
-    c = 0
     update_flag = False
-    for data_div in data_divs:
-        if '分类:其他道具' in data_div['data-category']:
-            print('skip', data_div['data-name'])
-            continue
-        item_name = data_div['data-name']
-        flag = save_item(item_name, data_div['data-file'])
-        if flag:
-            update_flag = True
-            print(item_name)
-        c += 1
-        # print(f'{c}/{total} {item_name}')
-    return update_flag
-
-
-def download_latest_event_icons():
-    print('checking event page...')
-    resp = request_get('https://prts.wiki/w/%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88')
-    soup = bs4.BeautifulSoup(resp.text, features='html.parser')
-    event_tags = soup.find_all(text=' 进行中')
-    event_tags += soup.find_all(text='未开始')
-    update_flag = False
-    if event_tags:
-        for event_tag in event_tags:
-            a_tag = event_tag.parent.parent.find_previous_sibling('a')
-            event_url = 'https://prts.wiki' + a_tag['href']
-            print('handle event:', a_tag.text)
-            flag = download_from_event_page(event_url)
-            if flag:
+    gh_item_files = list_item_dir()
+    icon_id_map = get_icon_id_map()
+    for content_file in gh_item_files:
+        icon_id = content_file.name[:-4]
+        tmp_list = icon_id_map.get(icon_id, [])
+        if icon_id == 'randomMaterial_1':
+            tmp_list = [tmp_list[-1]]
+        for item_info in tmp_list:
+            # print(icon_id, item_info)
+            if save_item(item_info['name'], content_file.download_url):
                 update_flag = True
     return update_flag
 
 
-def download_from_event_page(event_url):
-    resp = request_get(event_url)
-    soup = bs4.BeautifulSoup(resp.text, features='html.parser')
-    item_imgs = soup.find_all('img', attrs={'alt': re.compile('道具')})
-    item_set = set()
-    update_flag = False
-    for item_img in item_imgs:
-        # print(item_img)
-        if item_img['alt'] in item_set:
-            continue
-        if item_img.get('data-srcset') is None:
-            continue
-        if 'a' != item_img.parent.name:
-            continue
-        item_set.add(item_img['alt'])
-        item_name = item_img.parent['title']
-        img_url = 'https://prts.wiki' + item_img['data-srcset'].split(', ')[-1][:-3]
-        flag = save_item(item_name, img_url)
-        if flag:
-            update_flag = True
-    return update_flag
+def list_item_dir():
+    g = Github()
+    repo = g.get_repo('yuanyan3060/Arknights-Bot-Resource')
+    return repo.get_contents('item')
 
 
 def save_item(item_name, img_url):
@@ -190,5 +150,3 @@ def save_img(item_id, item_name, img_url):
 
 if __name__ == '__main__':
     download_icons()
-    # print(download_latest_event_icons())
-    # download_from_event_page('https://prts.wiki/w/%E5%A4%9A%E7%B4%A2%E9%9B%B7%E6%96%AF%E5%81%87%E6%97%A5')

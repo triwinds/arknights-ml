@@ -4,7 +4,7 @@
 
 `item` 来自[明日方舟工具箱](https://github.com/arkntools/arknights-toolbox), 运行 `images/download-items.sh` 下载
 
-`collect` 来自[prts.wiki](http://prts.wiki/w/%E9%81%93%E5%85%B7%E4%B8%80%E8%A7%88), 运行 `dl_data.py` 下载
+`collect` 来自[yuanyan3060/Arknights-Bot-Resource](https://github.com/yuanyan3060/Arknights-Bot-Resource), 运行 `dl_data.py` 下载
 
 
 ## 训练

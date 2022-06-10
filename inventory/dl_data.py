@@ -87,8 +87,8 @@ def download_icons():
     for content_file in gh_item_files:
         icon_id = content_file.name[:-4]
         tmp_list = icon_id_map.get(icon_id, [])
-        if icon_id == 'randomMaterial_1':
-            tmp_list = [tmp_list[-1]]
+        # if icon_id == 'randomMaterial_1':
+        #     tmp_list = [tmp_list[-1]]
         for item_info in tmp_list:
             # print(icon_id, item_info)
             if save_item(item_info['name'], content_file.download_url):

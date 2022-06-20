@@ -4,8 +4,9 @@ import cv2
 import cv_svm_ocr
 import os
 
+from stage import demo
 
-target_dir = 'images/chars_end'
+target_dir = 'images/chars2'
 
 
 def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM'):
@@ -34,9 +35,27 @@ def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM
         cv2.imwrite(char_dir + f'/{img_prefix}_%s.png' % c, char_img)
 
 
+def add_test_char(test_char_dir):
+    img_paths = os.listdir(test_char_dir)
+    for img_name in img_paths:
+        img = cv2.imread(f'{test_char_dir}/{img_name}')
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        real_tag_str = img_name[:-4]
+        noise_size = None if not real_tag_str.isdigit() \
+                             and 'EPISODE' not in real_tag_str else 1
+        char_imgs = demo.crop_char_img(img, noise_size)
+        if len(char_imgs) != len(real_tag_str):
+            print(f'wrong crop: {img_name}, len: {len(char_imgs)}, real: {len(real_tag_str)}')
+            continue
+        for i, char_img in enumerate(char_imgs):
+            cv2.imwrite(f'{target_dir}/{real_tag_str[i]}/{i}-{img_name}', ~char_img)
+
+
 if __name__ == '__main__':
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
-    # gen_data('Novecento WideBold.otf', 'gen_nw')
-    gen_data('Novecento WideMedium.otf', 'gen_nwm')
-    # gen_data('Bender.otf', 'gen_b', '0123456789')
+    gen_data('Novecento WideBold.otf', 'gen_nw')
+    gen_data('Bender.otf', 'gen_b', '0123456789')
+    add_test_char('images/test')
+    # gen_data('Novecento WideMedium.otf', 'gen_nwm')
+

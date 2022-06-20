@@ -17,6 +17,11 @@ import demo
 
 resources_path = 'images/chars2/'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+SEED = 0
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+torch.backends.cudnn.deterministic = True
+np.random.seed(SEED)
 
 
 def dump_index_itemid_relation():
@@ -106,10 +111,11 @@ def add_noise(img, max_random_h):
         y = np.random.randint(0, max_random_h)
         img[y][x] = 255 * np.random.randint(0, 2)
     # print(img.shape)
-    if np.random.randint(0, 2):
+    if np.random.randint(0, 10) < 2:
         scale = 40 / np.random.randint(30, 85)
         img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
         img = cv2.resize(img, (16, 16))
+        # img = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)[1]
     h, w = img.shape
     t = 0
     l = np.random.randint(0, 2)
@@ -125,7 +131,7 @@ def get_data():
     images = []
     labels = []
     for c in img_map.keys():
-        cnt = 30 if c in '-5TR' else 10
+        cnt = 30 if c in '-TR' else 10
         # cnt = 5 if c in '1' else cnt
         max_random_h = 6 if c == '-' else 16
         idxs = np.random.choice(range(len(img_map[c])), cnt)
@@ -136,13 +142,14 @@ def get_data():
             image_aug = np.expand_dims(image_aug, 0)
             images.append(image_aug)
             labels.append(id2idx[c])
+    # add_test_char(images, labels)
     images_np = np.stack(images, 0)
     labels_np = np.array(labels)
 
-    # rand = np.random.RandomState(321)
-    # shuffle = rand.permutation(len(images_np))
-    # images_np = images_np[shuffle]
-    # labels_np = labels_np[shuffle]
+    rand = np.random.RandomState(321)
+    shuffle = rand.permutation(len(images_np))
+    images_np = images_np[shuffle]
+    labels_np = labels_np[shuffle]
 
     # print(images_np.shape)
     return images_np, labels_np
@@ -194,7 +201,7 @@ def train():
     model.train()
     step = 0
     prec = 0
-    target_step = 1500
+    target_step = 1100
     best = 10
     saved = False
     while step < target_step or not saved:
@@ -209,7 +216,7 @@ def train():
         if step < 10 or step % 10 == 0:
             print(step, loss.item(), prec)
         step += 1
-        if step > target_step - 500 and loss.item() < best:
+        if step > target_step - 200 and loss.item() < best:
             model.eval()
             if test(model):
                 saved = True
@@ -312,7 +319,7 @@ def test(model, print_all=False):
     img_paths = ls_test()
     for img_name in img_paths:
         real_tag_str = img_name[:-4]
-        noise_size = None if real_tag_str not in {'120', '160', '470', '715', '820'} \
+        noise_size = None if not real_tag_str.isdigit() \
                              and 'EPISODE' not in real_tag_str else 1
         tag = load_test_img(f'images/test/{img_name}')
         tag_str = predict(tag, model, noise_size)

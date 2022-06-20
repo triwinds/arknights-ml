@@ -116,7 +116,8 @@ def save_item(item_name, img_url):
     if item:
         if item['itemType'] in {'MATERIAL', 'ARKPLANNER', 'ACTIVITY_ITEM', 'VOUCHER_MGACHA', 'AP_SUPPLY'} or item['itemId'].isdigit():
             item_id = item['itemId']
-        if item['itemType'] not in {'ACTIVITY_ITEM', 'VOUCHER_MGACHA', 'AP_SUPPLY'} and not item_id.isdigit():
+        if item['itemType'] not in {'ACTIVITY_ITEM', 'VOUCHER_MGACHA', 'AP_SUPPLY'} \
+                and not item_id.isdigit() and item_name not in {'模组数据块', '数据增补仪', '数据增补条'}:
             item_id = 'other'
     return save_img(item_id, item_name, img_url)
 

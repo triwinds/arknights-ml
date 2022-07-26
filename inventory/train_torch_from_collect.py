@@ -76,10 +76,10 @@ def get_manual_item_name(item_id):
         '@charm_r0_p9': '黄金筹码',
         '@charm_r0_p12': '错版硬币',
         '@charm_r0_p18': '双日城大乐透',
-        '@charm_r1_p20': '标志物 - 20代金券',
-        '@charm_r2_p40': '标志物 - 40代金券',
-        '@charm_r3_p60': '沙兹专业镀膜装置',
-        '@charm_r3_p150': '翡翠庭院至臻',
+        '@charm_r1_p15': '标志物 - 15代金券',
+        '@charm_r2_p30': '标志物 - 30代金券',
+        '@charm_r3_p45': '沙兹专业镀膜装置',
+        '@charm_r3_p100': '翡翠庭院至臻',
     }
     return tmp_map.get(item_id, default_name)
 

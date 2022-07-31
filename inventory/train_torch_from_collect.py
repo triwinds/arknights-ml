@@ -31,7 +31,7 @@ def update_resources(exit_if_not_update=False):
         exit(0)
 
 
-update_resources(True)
+# update_resources(True)
 
 
 def dump_index_itemid_relation(exclude_collect):
@@ -76,8 +76,8 @@ def get_manual_item_name(item_id):
         '@charm_r0_p9': '黄金筹码',
         '@charm_r0_p12': '错版硬币',
         '@charm_r0_p18': '双日城大乐透',
-        '@charm_r1_p15': '标志物 - 15代金券',
-        '@charm_r2_p30': '标志物 - 30代金券',
+        '@charm_r1_p15': '标志物 - 20/15代金券',
+        '@charm_r2_p30': '标志物 - 40/30代金券',
         '@charm_r3_p45': '沙兹专业镀膜装置',
         '@charm_r3_p100': '翡翠庭院至臻',
     }

@@ -2,14 +2,12 @@ import json
 import os
 import subprocess
 import time
-# from functools import lru_cache
 from io import BytesIO
 
 import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-# import torch.nn.functional as F
 from PIL import Image
 
 import inventory
@@ -31,7 +29,7 @@ def update_resources(exit_if_not_update=False):
         exit(0)
 
 
-update_resources(True)
+# update_resources(True)
 
 
 def dump_index_itemid_relation(exclude_collect):
@@ -58,7 +56,9 @@ def dump_index_itemid_relation(exclude_collect):
         index += 1
     with open('index_itemid_relation.json', 'w', encoding='utf-8') as f:
         json.dump(dump_data, f, ensure_ascii=False)
-    return dump_data['idx2id'], dump_data['id2idx'], dump_data['idx2name']
+    with open('gen_time.txt', 'w') as f:
+        f.write(str(dump_data['time']))
+    return dump_data['idx2id'], dump_data['id2idx'], dump_data['idx2name'], dump_data['idx2type']
 
 
 def get_item_name(item_id, items_id_map):
@@ -134,13 +134,13 @@ def load_images():
             continue
         weights.append(weight)
     weights_t = torch.as_tensor(weights)
-    weights_t[weights_t > 80] = 80
+    weights_t[weights_t > 160] = 160
     weights_t = 1 / weights_t
     return img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t, empty_collect
 
 
 img_map, gray_img_map, img_files, item_id_map, circle_map, weights_t, empty_collect = load_images()
-idx2id, id2idx, idx2name = dump_index_itemid_relation(empty_collect)
+idx2id, id2idx, idx2name, idx2type = dump_index_itemid_relation(empty_collect)
 NUM_CLASS = len(idx2id)
 print('NUM_CLASS', NUM_CLASS)
 
@@ -168,15 +168,6 @@ def crop_tensor_middle_img(cv_item_img, ox, oy, radius):
     return img_t
 
 
-def get_noise_data():
-    images_np = np.random.rand(40, 64, 64, 3)
-    labels_np = np.asarray(['other']).repeat(40)
-    return images_np, labels_np
-
-
-max_resize_ratio = 100
-
-
 IGNORE_ITEM_ID = get_ignore_item_ids()
 print('IGNORE_ITEM_ID', IGNORE_ITEM_ID)
 
@@ -190,11 +181,10 @@ def get_data(img_files, item_id_map, circle_map, img_map):
             continue
         c = circle_map[filepath]
         t = 4 if item_id != 'other' else 1
+        max_float_size = 16
         for _ in range(t):
             ox = c[0] + np.random.randint(-5, 5)
             oy = c[1] + np.random.randint(-5, 5)
-            # ratio = np.random.randint(-max_resize_ratio, max_resize_ratio)
-            # img_t = get_resized_img(filepath, ratio)
             img_t = img_map[filepath]
             img_t = crop_tensor_middle_img(img_t, ox, oy, c[2])
             image_aug = img_t
@@ -212,25 +202,26 @@ class Cnn(nn.Module):
     def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(3, 32, 5, stride=3, padding=2),  # 32 * 20 * 20
-            nn.BatchNorm2d(32),
+            nn.Conv2d(3, 16, 5, stride=3, padding=2),  # 16 * 20 * 20
+            nn.BatchNorm2d(16),
             nn.ReLU(True),
-            nn.AvgPool2d(5, 5),  # 32 * 4 * 4
-            nn.Conv2d(32, 32, 3, stride=2, padding=1),  # 32 * 2 * 2
-            nn.BatchNorm2d(32),
+            nn.AvgPool2d(5, 5),  # 16 * 4 * 4
+            nn.Conv2d(16, 16, 3, stride=2, padding=1),  # 16 * 2 * 2
+            nn.BatchNorm2d(16),
             nn.ReLU(True),
             # nn.AvgPool2d(2, 2),
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(32 * 2 * 2, 2 * NUM_CLASS),
+            nn.Linear(16 * 2 * 2, 2 * NUM_CLASS),
             nn.ReLU(True),
+            nn.Dropout(0.5),
             nn.Linear(2 * NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
         x /= 255.
         out = self.conv(x)
-        out = out.reshape(-1, 32 * 2 * 2)
+        out = out.reshape(-1, 16 * 2 * 2)
         out = self.fc(out)
         return out
 
@@ -246,7 +237,7 @@ def train():
 
     print('train on:', device)
     model = Cnn().to(device)
-    optim = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optim = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     model.train()
     step = 0
     prec = 0
@@ -278,13 +269,7 @@ def train():
                 model.train()
         if step > target_step * 2:
             raise Exception('train too long')
-
-
-    from dl_data import request_get
-    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/index_itemid_relation.json', True)
-    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@latest/inventory/ark_material.onnx', True)
-    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@main/inventory/index_itemid_relation.json', True)
-    request_get('https://purge.jsdelivr.net/gh/triwinds/arknights-ml@main/inventory/ark_material.onnx', True)
+    add_metadata_to_model()
 
 
 def load_model():
@@ -293,6 +278,17 @@ def load_model():
     model.load_state_dict(torch.load('./model.pth', map_location=device))
     model.eval()
     return model
+
+
+def add_metadata_to_model():
+    with open('./index_itemid_relation.json', 'r', encoding='utf-8') as f:
+        content = f.read()
+    import onnx
+    model = onnx.load_model('ark_material.onnx')
+    meta = model.metadata_props.add()
+    meta.key = 'relation'
+    meta.value = content
+    onnx.save_model(model, 'ark_material.onnx')
 
 
 def predict(model, roi_list):
@@ -340,9 +336,14 @@ def test(model):
         item_id = res[0][i][0]
         expect_id = collect_list[i]
         # print(f"{item_id}/{expect_id}, {res[1][i]:.3f}")
+        item_type = idx2type[id2idx[expect_id]]
+        thresh = 0.7 if item_type in {'MATERIAL'} else 0.5
         if item_id != expect_id and expect_id not in {'randomMaterial_1', 'randomMaterial_5'}:
             # inventory.show_img(items[i])
             print(f'Wrong predict: {item_id}/{expect_id}, {res[1][i]}')
+            return False
+        elif res[1][i] < thresh:
+            print(f'low confidence: {item_id}/{expect_id}, {res[1][i]}')
             return False
     return True
 
@@ -440,8 +441,18 @@ def export_onnx():
     torch.onnx.export(model, roi_t, 'ark_material.onnx')
 
 
+def test_metadata():
+    import onnxruntime as ort
+    sess = ort.InferenceSession('ark_material.onnx')
+    metamap = sess.get_modelmeta().custom_metadata_map
+    relation = metamap['relation']
+    print(relation)
+
+
 if __name__ == '__main__':
     train()
+    # add_metadata_to_model()
+    # test_metadata()
     # prepare_train_resource()
     # prepare_train_resource2()
     # export_onnx()

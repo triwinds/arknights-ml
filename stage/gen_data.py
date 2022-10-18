@@ -6,8 +6,6 @@ import os
 
 from stage import demo
 
-target_dir = 'images/chars2'
-
 
 def gen_data(font_path, img_prefix, chars='-0123456789QWERTYUIOPASDFGHJKLZXCVBNM'):
     # img = np.ones((60, 60, 3), np.uint8)
@@ -42,8 +40,9 @@ def add_test_char(test_char_dir):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         real_tag_str = img_name[:-4]
         noise_size = None if not real_tag_str.isdigit() \
-                             and 'EPISODE' not in real_tag_str else 1
-        char_imgs = demo.crop_char_img(img, noise_size)
+                             and 'EPISODE' not in real_tag_str and len(real_tag_str) < 6 else 1
+        include_last_char = True if real_tag_str in {'PR-B-2'} else False
+        char_imgs = demo.crop_char_img(img, noise_size, include_last_char)
         if len(char_imgs) != len(real_tag_str):
             print(f'wrong crop: {img_name}, len: {len(char_imgs)}, real: {len(real_tag_str)}')
             continue
@@ -52,10 +51,14 @@ def add_test_char(test_char_dir):
 
 
 if __name__ == '__main__':
+    # target_dir = 'images/chars2'
+    target_dir = 'images/chars_end'
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
-    gen_data('Novecento WideBold.otf', 'gen_nw')
-    gen_data('Bender.otf', 'gen_b', '0123456789')
-    add_test_char('images/test')
-    # gen_data('Novecento WideMedium.otf', 'gen_nwm')
+    # gen_data('Novecento WideBold.otf', 'gen_nw')
+    # gen_data('Bender.otf', 'gen_b', '0123456789')
+    # add_test_char('images/test')
+
+    gen_data('Novecento WideMedium.otf', 'gen_nwm')
+    add_test_char('images/test_end')
 

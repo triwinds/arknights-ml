@@ -29,7 +29,7 @@ def update_resources(exit_if_not_update=False):
         exit(0)
 
 
-update_resources(True)
+# update_resources(True)
 
 
 def dump_index_itemid_relation(exclude_collect):
@@ -202,11 +202,11 @@ class Cnn(nn.Module):
     def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(3, 16, 5, stride=3, padding=2),  # 16 * 20 * 20
-            nn.BatchNorm2d(16),
+            nn.Conv2d(3, 8, 5, stride=3, padding=2),  # 16 * 20 * 20
+            nn.BatchNorm2d(8),
             nn.ReLU(True),
             nn.AvgPool2d(5, 5),  # 16 * 4 * 4
-            nn.Conv2d(16, 16, 3, stride=2, padding=1),  # 16 * 2 * 2
+            nn.Conv2d(8, 16, 3, stride=2, padding=1),  # 16 * 2 * 2
             nn.BatchNorm2d(16),
             nn.ReLU(True),
             # nn.AvgPool2d(2, 2),
@@ -215,7 +215,7 @@ class Cnn(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(16 * 2 * 2, 2 * NUM_CLASS),
             nn.ReLU(True),
-            nn.Dropout(0.5),
+            nn.Dropout(0.3),
             nn.Linear(2 * NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
@@ -338,7 +338,7 @@ def test(model):
         # print(f"{item_id}/{expect_id}, {res[1][i]:.3f}")
         item_type = idx2type[id2idx[expect_id]]
         thresh = 0.7 if item_type in {'MATERIAL'} else 0.5
-        if item_id != expect_id and expect_id not in {'randomMaterial_1', 'randomMaterial_5'}:
+        if item_id != expect_id and expect_id not in IGNORE_ITEM_ID:
             # inventory.show_img(items[i])
             print(f'Wrong predict: {item_id}/{expect_id}, {res[1][i]}')
             return False

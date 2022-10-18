@@ -100,14 +100,14 @@ print('NUM_CLASS', NUM_CLASS)
 def add_noise(img, max_random_h):
     img = img.copy()
     h, w = img.shape
-    count = np.random.randint(0, 5)
+    count = np.random.randint(0, 10)
     for _ in range(count):
         x = np.random.randint(0, w)
         y = np.random.randint(0, max_random_h)
         img[y][x] = 255 * np.random.randint(0, 2)
     # print(img.shape)
     if np.random.randint(0, 2):
-        scale = 40 / np.random.randint(35, 45)
+        scale = 40 / np.random.randint(25, 60)
         img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
         img = cv2.resize(img, (16, 16))
     h, w = img.shape
@@ -152,24 +152,26 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 16, 3, stride=1, padding=1),  # 16 * 16 * 16
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, 4, 3, stride=1, padding=1),  # 16 * 16 * 16
+            nn.BatchNorm2d(4),
             nn.ReLU(True),
-            nn.Conv2d(16, 32, 3, stride=2, padding=1),  # 32 * 8 * 8
-            nn.BatchNorm2d(32),
+            nn.Conv2d(4, 8, 3, stride=2, padding=1),  # 32 * 8 * 8
+            nn.BatchNorm2d(8),
             nn.ReLU(True),
-            nn.AvgPool2d(4, 4)  # 32 * 2 * 2
+            nn.AvgPool2d(4, 4),  # 32 * 2 * 2
+            nn.ReLU(True),
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(32 * 2 * 2, NUM_CLASS)
+            nn.Dropout(0.5),
+            nn.Linear(8 * 2 * 2, NUM_CLASS)
         )
 
     def forward(self, x):
         x = x / 255.
         x = x - 0.5
         out = self.conv(x)
-        out = out.reshape(-1, 32 * 2 * 2)
+        out = out.reshape(-1, 8 * 2 * 2)
         out = self.fc(out)
 
         return out
@@ -229,8 +231,8 @@ def load_model():
     return model
 
 
-def predict(img, model, noise_size=None):
-    char_imgs = demo.crop_char_img(img, noise_size)
+def predict(img, model, noise_size=None, include_last_char=False):
+    char_imgs = demo.crop_char_img(img, noise_size, include_last_char)
     if not char_imgs:
         return ''
     roi_list = [np.expand_dims(demo.resize_char(x), 0) for x in char_imgs]
@@ -315,7 +317,8 @@ def test(model, print_all=False):
         noise_size = None if real_tag_str not in {'120', '160', '470', '715', '820'} \
                              and 'EPISODE' not in real_tag_str else 1
         tag = load_test_img(f'images/test_end/{img_name}')
-        tag_str = predict(tag, model, noise_size)
+        include_last_char = True if real_tag_str in {'PR-B-2'} else False
+        tag_str = predict(tag, model, noise_size, include_last_char)
         if print_all:
             print(real_tag_str, tag_str)
         if real_tag_str != tag_str:

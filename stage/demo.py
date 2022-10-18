@@ -42,7 +42,7 @@ def resize_char(img):
     return img2
 
 
-def crop_char_img(img, noise_size=None):
+def crop_char_img(img, noise_size=None, include_last_char=False):
     h, w = img.shape[:2]
     has_white = False
     last_x = None
@@ -65,23 +65,27 @@ def crop_char_img(img, noise_size=None):
                 break
         if not has_white and last_x:
             if x - last_x >= noise_size // 2:
-                min_y = None
-                max_y = None
-                for y1 in range(0, h):
-                    has_white = False
-                    for x1 in range(last_x, x):
-                        if img[y1][x1] > 127:
-                            has_white = True
-                            if min_y is None:
-                                min_y = y1
-                            break
-                    if not has_white and min_y is not None and max_y is None:
-                        max_y = y1
-                        break
-                res.append(img[min_y:max_y, last_x:x])
+                x_char_img = img[:, last_x:x]
+                res.append(crop_x_char(x_char_img))
             last_x = None
+        if include_last_char and has_white and last_x != w - 1 and x == w - 1:
+            x_char_img = img[:, last_x:w]
+            res.append(crop_x_char(x_char_img))
     return res
 
+
+def crop_x_char(x_char_img):
+    min_y, max_y = 0, x_char_img.shape[0]
+    y_max = np.max(x_char_img, axis=1)
+    for i in range(len(y_max)):
+        if y_max[i] >= 127:
+            min_y = i
+            break
+    for i in range(len(y_max) - 1, 0, -1):
+        if y_max[i] >= 127:
+            max_y = i + 1
+            break
+    return x_char_img[min_y:max_y, :]
 
 def thresholding(image):
     img = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]

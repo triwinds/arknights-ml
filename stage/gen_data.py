@@ -51,14 +51,14 @@ def add_test_char(test_char_dir):
 
 
 if __name__ == '__main__':
-    # target_dir = 'images/chars2'
-    target_dir = 'images/chars_end'
+    target_dir = 'images/chars2'
+    # target_dir = 'images/chars_end'
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
-    # gen_data('Novecento WideBold.otf', 'gen_nw')
-    # gen_data('Bender.otf', 'gen_b', '0123456789')
-    # add_test_char('images/test')
+    gen_data('Mada-Medium.otf', 'gen_nw')
+    gen_data('Bender.otf', 'gen_b', '0123456789')
+    add_test_char('images/test')
 
-    gen_data('Novecento WideMedium.otf', 'gen_nwm')
-    add_test_char('images/test_end')
+    # gen_data('Novecento WideMedium.otf', 'gen_nwm')
+    # add_test_char('images/test_end')
 

@@ -1,6 +1,6 @@
 ## 素材
 
-`Novecento WideBold.otf` 关卡字体
+`Mada-Medium.otf` 关卡字体
 
 `Novecento WideMedium.otf` 结算界面关卡字体
 

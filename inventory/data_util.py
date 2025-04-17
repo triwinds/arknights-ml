@@ -6,7 +6,7 @@ with open('items.json', 'r', encoding='utf-8') as f:
 
 def get_ignore_item_ids():
     icon_map = {}
-    ignore_item_ids = []
+    ignore_item_ids = ['act13side_token_model_rep_1']
     for item in items:
         tmp = icon_map.get(item['iconId'], [])
         tmp.append(item['itemId'])

@@ -202,26 +202,26 @@ class Cnn(nn.Module):
     def __init__(self):
         super(Cnn, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(3, 8, 5, stride=3, padding=2),  # 16 * 20 * 20
-            nn.BatchNorm2d(8),
+            nn.Conv2d(3, 32, 5, stride=3, padding=2),  # 16 * 20 * 20
+            nn.BatchNorm2d(32),
             nn.ReLU(True),
-            nn.AvgPool2d(5, 5),  # 16 * 4 * 4
-            nn.Conv2d(8, 16, 3, stride=2, padding=1),  # 16 * 2 * 2
-            nn.BatchNorm2d(16),
+            nn.MaxPool2d(5, 5),  # 16 * 4 * 4
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),  # 16 * 2 * 2
+            nn.BatchNorm2d(64),
             nn.ReLU(True),
             # nn.AvgPool2d(2, 2),
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(16 * 2 * 2, 2 * NUM_CLASS),
+            nn.Linear(64 * 2 * 2, 2 * NUM_CLASS),
             nn.ReLU(True),
-            nn.Dropout(0.3),
+            nn.Dropout(0.1),
             nn.Linear(2 * NUM_CLASS, NUM_CLASS))
 
     def forward(self, x):
         x /= 255.
         out = self.conv(x)
-        out = out.reshape(-1, 16 * 2 * 2)
+        out = out.reshape(-1, 64 * 2 * 2)
         out = self.fc(out)
         return out
 

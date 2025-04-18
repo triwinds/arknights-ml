@@ -2,7 +2,7 @@ numpy
 opencv-python
 Pillow
 requests
-torch==2.6.0
+torch
 beautifulsoup4
 retry
 PyGithub

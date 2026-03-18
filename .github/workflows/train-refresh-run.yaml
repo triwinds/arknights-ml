@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v6
       with:
         python-version: '3.9'
         architecture: x64
     - name: Cache pip
-      uses: actions/cache@v2
+      uses: actions/cache@v5
       with:
         # This path is specific to Ubuntu
         path: ~/.cache/pip
@@ -33,12 +33,12 @@ jobs:
       run: |
         cd inventory && python clear_collect.py && python train_torch_from_collect.py
     - name: Upload artifact
-      uses: actions/upload-artifact@v2.1.4
+      uses: actions/upload-artifact@v7
       with:
         name: ark_material.onnx
         path: inventory/ark_material.onnx
     - name: Commit changes
-      uses: EndBug/add-and-commit@v7
+      uses: EndBug/add-and-commit@v9
       with:
         author_name: github-actions
         author_email: 41898282+github-actions[bot]@users.noreply.github.com

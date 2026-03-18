@@ -111,6 +111,9 @@ def load_images():
         weight = 0
         for filename in sub_dir_files:
             filepath = os.path.join(dirpath, filename)
+            if not os.path.isfile(filepath):
+                print(f'Skip non-file in collect dir: {filepath}')
+                continue
             with open(filepath, 'rb') as f:
                 nparr = np.frombuffer(f.read(), np.uint8)
                 # convert to image array
@@ -313,17 +316,26 @@ def test(model):
     collect_list = os.listdir('images/collect')
     collect_list.sort()
     items = []
+    item_collect_ids = []
     for cdir in collect_list:
         dirpath = 'images/collect/' + cdir
         sub_dir_files = os.listdir(dirpath)
-        filename = sub_dir_files[0]
-        filepath = os.path.join(dirpath, filename)
+        filepath = None
+        for filename in sub_dir_files:
+            tmp_path = os.path.join(dirpath, filename)
+            if os.path.isfile(tmp_path):
+                filepath = tmp_path
+                break
+        if filepath is None:
+            print(f'No file found in {dirpath}, skip.')
+            continue
         with open(filepath, 'rb') as f:
             nparr = np.frombuffer(f.read(), np.uint8)
             # convert to image array
             image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             image = crop_item_middle_img(cv2.resize(image, (140, 140)), 70, 70)
             items.append(image)
+            item_collect_ids.append(cdir)
     roi_list = []
     for x in items:
         roi = x
@@ -334,7 +346,7 @@ def test(model):
     # print(res)
     for i in range(len(res[0])):
         item_id = res[0][i][0]
-        expect_id = collect_list[i]
+        expect_id = item_collect_ids[i]
         # print(f"{item_id}/{expect_id}, {res[1][i]:.3f}")
         item_type = idx2type[id2idx[expect_id]]
         thresh = 0.7 if item_type in {'MATERIAL'} else 0.5

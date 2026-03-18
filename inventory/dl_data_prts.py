@@ -10,6 +10,12 @@ from event_util import handle_special_item
 from net_util import request_get
 
 collect_path = 'images/collect/'
+INVALID_FILENAME_CHARS = {'%', '/', '\\', ':', '*', '?', '"', '<', '>', '|'}
+WINDOWS_RESERVED_FILENAMES = {
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+}
 
 
 def update_items():
@@ -142,6 +148,19 @@ def download_from_event_page(event_url):
     return update_flag
 
 
+def sanitize_item_filename(item_name):
+    safe_name = []
+    for ch in item_name:
+        if ch in INVALID_FILENAME_CHARS or ord(ch) < 32:
+            safe_name.append(f'%{ord(ch):02X}')
+            continue
+        safe_name.append(ch)
+    safe_name = ''.join(safe_name)
+    if safe_name.split('.')[0].upper() in WINDOWS_RESERVED_FILENAMES:
+        safe_name = '_' + safe_name
+    return safe_name or '_'
+
+
 def save_item(item_name, img_url):
     if img_url.startswith('//'):
         img_url = 'https:' + img_url
@@ -168,12 +187,15 @@ def save_img(item_id, item_name, img_url):
     if '家具收藏包' in item_name:
         print(f'skip 家具收藏包 [{item_name}], img_url: {img_url}')
         return False
-    if not os.path.exists(collect_path + item_id):
-        os.mkdir(collect_path + item_id)
-    filepath = collect_path + item_id + '/%s.png' % item_name
+    dirpath = os.path.join(collect_path, item_id)
+    os.makedirs(dirpath, exist_ok=True)
+    safe_item_name = sanitize_item_filename(item_name)
+    filepath = os.path.join(dirpath, f'{safe_item_name}.png')
     if os.path.exists(filepath):
         return False
     print(f'downloading {item_id}/{item_name} ...')
+    if safe_item_name != item_name:
+        print(f'safe filename: {safe_item_name}.png')
     print(f'img_url: {img_url}')
     rc = 0
     while rc <= 3:
